@@ -20,7 +20,7 @@ reviews:
     - "!.github/**"
     - "!CONTRIBUTING.md"
     - "!README.md"
-    - "!.coderabbit.yaml"
+    - "!.coderabbit.yml"
 
   path_instructions:
     - path: "**/*.ts"
