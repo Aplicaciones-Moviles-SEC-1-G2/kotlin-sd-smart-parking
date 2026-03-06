@@ -11,7 +11,6 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.unit.dp
 import com.example.sd_smart_parking_app.data.model.Floor
 import com.example.sd_smart_parking_app.data.model.ParkingLot
 import com.example.sd_smart_parking_app.ui.components.ParkingCard
