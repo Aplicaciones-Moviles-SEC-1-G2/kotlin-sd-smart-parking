@@ -22,6 +22,7 @@ import com.example.sd_smart_parking_app.ui.theme.Typography
 
 @Composable
 fun HomeScreen(
+    onNavigationClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     // Datos de ejemplo
@@ -79,7 +80,8 @@ fun HomeScreen(
                 availableSpots = parkingLot.availableSpots,
                 totalSpots = parkingLot.totalSpots,
                 availabilityPercentage = 57, // 68 de 120
-                modifier = Modifier.padding(bottom = Spacing.lg)
+                modifier = Modifier.padding(bottom = Spacing.lg),
+                onNavigateClick = onNavigationClick
             )
 
             // Timestamp de última actualización
@@ -96,6 +98,6 @@ fun HomeScreen(
 @Composable
 fun HomeScreenPreview() {
     SmartParkingTheme {
-        HomeScreen()
+        HomeScreen( onNavigationClick = {} )
     }
 }

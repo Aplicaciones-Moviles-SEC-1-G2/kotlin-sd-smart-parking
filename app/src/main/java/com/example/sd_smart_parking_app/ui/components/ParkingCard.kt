@@ -31,6 +31,7 @@ fun ParkingCard(
     availableSpots: Int,
     totalSpots: Int,
     availabilityPercentage: Int,
+    onNavigateClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     Card(
@@ -124,7 +125,7 @@ fun ParkingCard(
             // Botón de navegación
             PrimaryButton(
                 text = "Navigate to Parking",
-                onClick = { },
+                onClick = onNavigateClick,
                 modifier = Modifier.padding(top = Spacing.md)
             )
         }
