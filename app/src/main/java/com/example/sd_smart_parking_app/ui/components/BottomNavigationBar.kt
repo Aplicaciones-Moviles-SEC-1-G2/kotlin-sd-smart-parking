@@ -75,7 +75,7 @@ fun BottomNavItemView(
     ) {
         Icon(
             imageVector = item.icon,
-            contentDescription = item.label,
+            contentDescription = null,
             tint = if (isSelected) PrimaryYellow else DarkText
         )
         Text(
