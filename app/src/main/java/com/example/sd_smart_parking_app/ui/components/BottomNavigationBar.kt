@@ -14,7 +14,8 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
-import com.example.sd_smart_parking_app.ui.theme.BorderGray
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.material3.Icon
 import com.example.sd_smart_parking_app.ui.theme.DarkText
 import com.example.sd_smart_parking_app.ui.theme.PrimaryYellow
 import com.example.sd_smart_parking_app.ui.theme.Spacing
@@ -23,7 +24,7 @@ import com.example.sd_smart_parking_app.ui.theme.White
 
 data class BottomNavItem(
     val label: String,
-    val icon: String,
+    val icon: ImageVector,
     val route: String
 )
 
@@ -72,10 +73,10 @@ fun BottomNavItemView(
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
     ) {
-        Text(
-            text = item.icon,
-            style = Typography.headlineLarge,
-            modifier = Modifier.padding(bottom = Spacing.xs)
+        Icon(
+            imageVector = item.icon,
+            contentDescription = item.label,
+            tint = if (isSelected) PrimaryYellow else DarkText
         )
         Text(
             text = item.label,

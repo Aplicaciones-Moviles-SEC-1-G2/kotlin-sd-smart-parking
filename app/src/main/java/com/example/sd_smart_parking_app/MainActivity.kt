@@ -17,6 +17,15 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
+
+// Icons
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Home
+import androidx.compose.material.icons.filled.Info
+import androidx.compose.material.icons.filled.Navigation
+import androidx.compose.material.icons.filled.History
+import androidx.compose.material.icons.filled.Person
+
 import androidx.navigation.compose.rememberNavController
 import com.example.sd_smart_parking_app.ui.components.BottomNavItem
 import com.example.sd_smart_parking_app.ui.components.SmartParkingBottomNavigationBar
@@ -50,27 +59,27 @@ fun MainApp() {
     val bottomNavItems = listOf(
         BottomNavItem(
             label = "Home",
-            icon = "🏠",
+            icon = Icons.Default.Home,
             route = NavRoutes.HOME
         ),
         BottomNavItem(
             label = "Details",
-            icon = "ℹ️",
+            icon = Icons.Default.Info,
             route = NavRoutes.DETAILS
         ),
         BottomNavItem(
             label = "Navigate",
-            icon = "📍",
+            icon = Icons.Default.Navigation,
             route = NavRoutes.NAVIGATE
         ),
         BottomNavItem(
             label = "History",
-            icon = "⏱️",
+            icon = Icons.Default.History,
             route = NavRoutes.HISTORY
         ),
         BottomNavItem(
             label = "Profile",
-            icon = "👤",
+            icon = Icons.Default.Person,
             route = NavRoutes.PROFILE
         )
     )
