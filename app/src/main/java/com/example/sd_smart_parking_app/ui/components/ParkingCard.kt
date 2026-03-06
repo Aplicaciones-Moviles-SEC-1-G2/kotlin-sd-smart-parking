@@ -27,7 +27,6 @@ fun ParkingCard(
     title: String,
     subtitle: String,
     availableSpots: Int,
-    totalSpots: Int,
     availabilityPercentage: Int,
     onNavigateClick: () -> Unit,
     modifier: Modifier = Modifier
