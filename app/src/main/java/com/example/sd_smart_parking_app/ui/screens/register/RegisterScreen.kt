@@ -9,6 +9,9 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.OutlinedTextField
@@ -39,7 +42,7 @@ import com.example.sd_smart_parking_app.ui.theme.Typography
 
 @Composable
 fun RegisterScreen(
-    onRegisterClick: () -> Unit,
+    onRegisterClick: (String, String, String) -> Unit,
     onLoginClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -47,6 +50,12 @@ fun RegisterScreen(
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
     var confirmPassword by remember { mutableStateOf("") }
+
+    // Validation logic
+    val isFormValid = name.isNotBlank() && 
+                      email.isNotBlank() && 
+                      password.isNotBlank() && 
+                      password == confirmPassword
 
     Scaffold(
         modifier = modifier.fillMaxSize(),
@@ -56,10 +65,14 @@ fun RegisterScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(paddingValues)
-                .padding(Spacing.lg),
+                .padding(Spacing.lg)
+                .verticalScroll(rememberScrollState())
+                .imePadding(),
             horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.Center
+            verticalArrangement = Arrangement.Top
         ) {
+            Spacer(modifier = Modifier.height(Spacing.xl))
+
             // Header
             Text(
                 text = "SD Building Parking",
@@ -137,8 +150,8 @@ fun RegisterScreen(
                     shape = RoundedCornerShape(CornerRadius.md),
                     visualTransformation = PasswordVisualTransformation(),
                     colors = OutlinedTextFieldDefaults.colors(
-                        focusedBorderColor = DarkText,
-                        unfocusedBorderColor = BorderGray,
+                        focusedBorderColor = if (password == confirmPassword) DarkText else com.example.sd_smart_parking_app.ui.theme.ErrorRed,
+                        unfocusedBorderColor = if (password == confirmPassword) BorderGray else com.example.sd_smart_parking_app.ui.theme.ErrorRed,
                         focusedLabelColor = DarkText,
                         unfocusedLabelColor = MediumGray
                     ),
@@ -152,7 +165,8 @@ fun RegisterScreen(
             // Register Button
             PrimaryButton(
                 text = "Register",
-                onClick = onRegisterClick
+                onClick = { if (isFormValid) onRegisterClick(name, email, password) },
+                enabled = isFormValid
             )
 
             Spacer(modifier = Modifier.height(Spacing.lg))
@@ -172,6 +186,8 @@ fun RegisterScreen(
                     modifier = Modifier.clickable { onLoginClick() }
                 )
             }
+            
+            Spacer(modifier = Modifier.height(Spacing.xl))
         }
     }
 }
@@ -180,6 +196,6 @@ fun RegisterScreen(
 @Composable
 fun RegisterScreenPreview() {
     SmartParkingTheme {
-        RegisterScreen(onRegisterClick = {}, onLoginClick = {})
+        RegisterScreen(onRegisterClick = { _, _, _ -> }, onLoginClick = {})
     }
 }

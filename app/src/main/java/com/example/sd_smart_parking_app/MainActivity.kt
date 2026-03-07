@@ -22,7 +22,6 @@ import androidx.compose.material.icons.filled.Navigation
 import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.Person
 
-import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.example.sd_smart_parking_app.ui.components.BottomNavItem
@@ -54,7 +53,9 @@ fun MainApp() {
     
     // Sincronizamos la ruta actual con el NavController para que la UI responda a cambios internos
     val navBackStackEntry by navController.currentBackStackEntryAsState()
-    val currentRoute = navBackStackEntry?.destination?.route ?: NavRoutes.HOME
+    
+    // Use the actual start destination of the graph to avoid showing the bottom bar during login
+    val currentRoute = navBackStackEntry?.destination?.route ?: NavRoutes.LOGIN
 
     // Definir los items del bottom navigation
     val bottomNavItems = listOf(
@@ -95,8 +96,8 @@ fun MainApp() {
                     currentRoute = currentRoute,
                     onItemSelected = { route ->
                         navController.navigate(route) {
-                            // Pop hasta el start destination para evitar stack de navegación infinito
-                            popUpTo(navController.graph.findStartDestination().id) {
+                            // Usamos HOME como ancla para que el stack se limpie correctamente
+                            popUpTo(NavRoutes.HOME) {
                                 saveState = true
                             }
                             launchSingleTop = true

@@ -9,6 +9,9 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.OutlinedTextField
@@ -39,7 +42,7 @@ import com.example.sd_smart_parking_app.ui.theme.Typography
 
 @Composable
 fun LoginScreen(
-    onLoginClick: () -> Unit,
+    onLoginClick: (String, String) -> Unit,
     onRegisterClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -54,7 +57,9 @@ fun LoginScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(paddingValues)
-                .padding(Spacing.lg),
+                .padding(Spacing.lg)
+                .verticalScroll(rememberScrollState())
+                .imePadding(),
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center
         ) {
@@ -118,7 +123,7 @@ fun LoginScreen(
             // Login Button
             PrimaryButton(
                 text = "Log In",
-                onClick = onLoginClick
+                onClick = { onLoginClick(email, password) }
             )
 
             Spacer(modifier = Modifier.height(Spacing.md))
@@ -156,7 +161,7 @@ fun LoginScreen(
 fun LoginScreenPreview() {
     SmartParkingTheme {
         LoginScreen(
-            onLoginClick = {},
+            onLoginClick = { _, _ -> },
             onRegisterClick = {}
         )
     }
