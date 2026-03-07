@@ -89,8 +89,8 @@ fun MainApp() {
     Scaffold(
         modifier = Modifier.fillMaxSize(),
         bottomBar = {
-            // Solo mostramos la barra si no estamos en login o registro
-            if (currentRoute != NavRoutes.LOGIN && currentRoute != NavRoutes.REGISTER) {
+            // Solo mostramos la barra si la ruta actual es una de las rutas del bottom bar
+            if (bottomNavItems.any { it.route == currentRoute }) {
                 SmartParkingBottomNavigationBar(
                     items = bottomNavItems,
                     currentRoute = currentRoute,

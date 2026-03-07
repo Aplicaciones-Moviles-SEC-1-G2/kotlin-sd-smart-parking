@@ -49,6 +49,8 @@ fun LoginScreen(
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
 
+    val isFormValid = email.isNotBlank() && password.isNotBlank()
+
     Scaffold(
         modifier = modifier.fillMaxSize(),
         containerColor = BackgroundWhite
@@ -123,7 +125,8 @@ fun LoginScreen(
             // Login Button
             PrimaryButton(
                 text = "Log In",
-                onClick = { onLoginClick(email, password) }
+                onClick = { if (isFormValid) onLoginClick(email, password) },
+                enabled = isFormValid
             )
 
             Spacer(modifier = Modifier.height(Spacing.md))
