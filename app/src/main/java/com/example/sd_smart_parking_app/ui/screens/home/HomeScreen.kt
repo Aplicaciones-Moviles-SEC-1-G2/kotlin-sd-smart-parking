@@ -11,7 +11,6 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.unit.dp
 import com.example.sd_smart_parking_app.data.model.Floor
 import com.example.sd_smart_parking_app.data.model.ParkingLot
 import com.example.sd_smart_parking_app.ui.components.ParkingCard
@@ -22,6 +21,7 @@ import com.example.sd_smart_parking_app.ui.theme.Typography
 
 @Composable
 fun HomeScreen(
+    onNavigationClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     // Datos de ejemplo
@@ -79,7 +79,8 @@ fun HomeScreen(
                 availableSpots = parkingLot.availableSpots,
                 totalSpots = parkingLot.totalSpots,
                 availabilityPercentage = 57, // 68 de 120
-                modifier = Modifier.padding(bottom = Spacing.lg)
+                modifier = Modifier.padding(bottom = Spacing.lg),
+                onNavigateClick = onNavigationClick
             )
 
             // Timestamp de última actualización
@@ -96,6 +97,6 @@ fun HomeScreen(
 @Composable
 fun HomeScreenPreview() {
     SmartParkingTheme {
-        HomeScreen()
+        HomeScreen( onNavigationClick = {} )
     }
 }

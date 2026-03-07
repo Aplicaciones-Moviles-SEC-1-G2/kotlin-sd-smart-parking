@@ -17,9 +17,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.example.sd_smart_parking_app.ui.theme.BackgroundLightGray
 import com.example.sd_smart_parking_app.ui.theme.CornerRadius
-import com.example.sd_smart_parking_app.ui.theme.DarkText
 import com.example.sd_smart_parking_app.ui.theme.Elevation
-import com.example.sd_smart_parking_app.ui.theme.HighAvailabilityGreen
 import com.example.sd_smart_parking_app.ui.theme.Spacing
 import com.example.sd_smart_parking_app.ui.theme.Typography
 import com.example.sd_smart_parking_app.ui.theme.White
@@ -31,6 +29,7 @@ fun ParkingCard(
     availableSpots: Int,
     totalSpots: Int,
     availabilityPercentage: Int,
+    onNavigateClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     Card(
@@ -124,7 +123,7 @@ fun ParkingCard(
             // Botón de navegación
             PrimaryButton(
                 text = "Navigate to Parking",
-                onClick = { },
+                onClick = onNavigateClick,
                 modifier = Modifier.padding(top = Spacing.md)
             )
         }

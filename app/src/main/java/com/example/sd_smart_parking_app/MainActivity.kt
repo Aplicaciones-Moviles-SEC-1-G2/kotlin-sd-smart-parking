@@ -11,9 +11,6 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
 
@@ -25,11 +22,12 @@ import androidx.compose.material.icons.filled.Navigation
 import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.Person
 
+import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.example.sd_smart_parking_app.ui.components.BottomNavItem
 import com.example.sd_smart_parking_app.ui.components.SmartParkingBottomNavigationBar
-import com.example.sd_smart_parking_app.ui.navigation.NavRoutes
-import com.example.sd_smart_parking_app.ui.navigation.SmartParkingNavGraph
+import com.example.sd_smart_parking_app.ui.screens.navigation.NavRoutes
+import com.example.sd_smart_parking_app.ui.screens.navigation.SmartParkingNavGraph
 import com.example.sd_smart_parking_app.ui.theme.SmartParkingTheme
 
 class MainActivity : ComponentActivity() {
@@ -52,7 +50,12 @@ class MainActivity : ComponentActivity() {
 @Composable
 fun MainApp() {
     val navController = rememberNavController()
-    var currentRoute by remember { mutableStateOf(NavRoutes.HOME) }
+    
+    // Sincronizamos la ruta actual con el NavController para que la UI responda a cambios internos
+    val navBackStackEntry by navController.currentBackStackEntryAsState()
+    
+    // Use the actual start destination of the graph to avoid showing the bottom bar during login
+    val currentRoute = navBackStackEntry?.destination?.route ?: NavRoutes.LOGIN
 
     // Definir los items del bottom navigation
     val bottomNavItems = listOf(
@@ -86,21 +89,23 @@ fun MainApp() {
     Scaffold(
         modifier = Modifier.fillMaxSize(),
         bottomBar = {
-            SmartParkingBottomNavigationBar(
-                items = bottomNavItems,
-                currentRoute = currentRoute,
-                onItemSelected = { route ->
-                    currentRoute = route
-                    navController.navigate(route) {
-                        // Pop hasta el start destination para evitar stack de navegación infinito
-                        popUpTo(NavRoutes.HOME) {
-                            saveState = true
+            // Solo mostramos la barra si la ruta actual es una de las rutas del bottom bar
+            if (bottomNavItems.any { it.route == currentRoute }) {
+                SmartParkingBottomNavigationBar(
+                    items = bottomNavItems,
+                    currentRoute = currentRoute,
+                    onItemSelected = { route ->
+                        navController.navigate(route) {
+                            // Usamos HOME como ancla para que el stack se limpie correctamente
+                            popUpTo(NavRoutes.HOME) {
+                                saveState = true
+                            }
+                            launchSingleTop = true
+                            restoreState = true
                         }
-                        launchSingleTop = true
-                        restoreState = true
                     }
-                }
-            )
+                )
+            }
         }
     ) { paddingValues ->
         Box(
