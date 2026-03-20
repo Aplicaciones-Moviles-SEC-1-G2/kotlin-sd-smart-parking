@@ -14,15 +14,8 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.OutlinedTextFieldDefaults
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
@@ -39,21 +32,40 @@ import com.example.sd_smart_parking_app.ui.theme.NavigationBlue
 import com.example.sd_smart_parking_app.ui.theme.SmartParkingTheme
 import com.example.sd_smart_parking_app.ui.theme.Spacing
 import com.example.sd_smart_parking_app.ui.theme.Typography
+import com.example.sd_smart_parking_app.ui.theme.ErrorRed
+import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.auth.UserProfileChangeRequest
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun RegisterScreen(
-    onRegisterClick: (String, String, String) -> Unit,
+    onRegisterClick: (String, String, String, String, String, String, String) -> Unit,
     onLoginClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     var name by remember { mutableStateOf("") }
     var email by remember { mutableStateOf("") }
+    var phone by remember { mutableStateOf("") }
+    var vehicleModel by remember { mutableStateOf("") }
+    var vehiclePlate by remember { mutableStateOf("") }
+    var role by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
     var confirmPassword by remember { mutableStateOf("") }
+    
+    var isLoading by remember { mutableStateOf(false) }
+    var errorMessage by remember { mutableStateOf<String?>(null) }
+    var expanded by remember { mutableStateOf(false) }
+    val roles = listOf("Driver", "Manager")
+
+    val auth = remember { FirebaseAuth.getInstance() }
 
     // Validation logic
     val isFormValid = name.isNotBlank() && 
                       email.isNotBlank() && 
+                      phone.isNotBlank() &&
+                      vehicleModel.isNotBlank() &&
+                      vehiclePlate.isNotBlank() &&
+                      role.isNotBlank() &&
                       password.isNotBlank() && 
                       password == confirmPassword
 
@@ -106,7 +118,8 @@ fun RegisterScreen(
                         focusedLabelColor = DarkText,
                         unfocusedLabelColor = MediumGray
                     ),
-                    singleLine = true
+                    singleLine = true,
+                    enabled = !isLoading
                 )
 
                 OutlinedTextField(
@@ -122,8 +135,97 @@ fun RegisterScreen(
                         unfocusedLabelColor = MediumGray
                     ),
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
-                    singleLine = true
+                    singleLine = true,
+                    enabled = !isLoading
                 )
+
+                OutlinedTextField(
+                    value = phone,
+                    onValueChange = { phone = it },
+                    label = { Text("Phone Number") },
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(CornerRadius.md),
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor = DarkText,
+                        unfocusedBorderColor = BorderGray,
+                        focusedLabelColor = DarkText,
+                        unfocusedLabelColor = MediumGray
+                    ),
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
+                    singleLine = true,
+                    enabled = !isLoading
+                )
+
+                OutlinedTextField(
+                    value = vehicleModel,
+                    onValueChange = { vehicleModel = it },
+                    label = { Text("Vehicle Model") },
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(RoundedCornerShape(CornerRadius.md).topStart), // Just being safe with shapes
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor = DarkText,
+                        unfocusedBorderColor = BorderGray,
+                        focusedLabelColor = DarkText,
+                        unfocusedLabelColor = MediumGray
+                    ),
+                    singleLine = true,
+                    enabled = !isLoading
+                )
+
+                OutlinedTextField(
+                    value = vehiclePlate,
+                    onValueChange = { vehiclePlate = it },
+                    label = { Text("Vehicle Plate") },
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(CornerRadius.md),
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor = DarkText,
+                        unfocusedBorderColor = BorderGray,
+                        focusedLabelColor = DarkText,
+                        unfocusedLabelColor = MediumGray
+                    ),
+                    singleLine = true,
+                    enabled = !isLoading
+                )
+
+                // Role Dropdown
+                ExposedDropdownMenuBox(
+                    expanded = expanded,
+                    onExpandedChange = { if (!isLoading) expanded = !expanded },
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    OutlinedTextField(
+                        value = role,
+                        onValueChange = {},
+                        readOnly = true,
+                        label = { Text("Role") },
+                        trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedBorderColor = DarkText,
+                            unfocusedBorderColor = BorderGray,
+                            focusedLabelColor = DarkText,
+                            unfocusedLabelColor = MediumGray
+                        ),
+                        modifier = Modifier
+                            .menuAnchor()
+                            .fillMaxWidth(),
+                        shape = RoundedCornerShape(CornerRadius.md)
+                    )
+                    ExposedDropdownMenu(
+                        expanded = expanded,
+                        onDismissRequest = { expanded = false }
+                    ) {
+                        roles.forEach { selectionOption ->
+                            DropdownMenuItem(
+                                text = { Text(selectionOption) },
+                                onClick = {
+                                    role = selectionOption
+                                    expanded = false
+                                }
+                            )
+                        }
+                    }
+                }
 
                 OutlinedTextField(
                     value = password,
@@ -139,7 +241,8 @@ fun RegisterScreen(
                         unfocusedLabelColor = MediumGray
                     ),
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
-                    singleLine = true
+                    singleLine = true,
+                    enabled = !isLoading
                 )
 
                 OutlinedTextField(
@@ -150,13 +253,23 @@ fun RegisterScreen(
                     shape = RoundedCornerShape(CornerRadius.md),
                     visualTransformation = PasswordVisualTransformation(),
                     colors = OutlinedTextFieldDefaults.colors(
-                        focusedBorderColor = if (password == confirmPassword) DarkText else com.example.sd_smart_parking_app.ui.theme.ErrorRed,
-                        unfocusedBorderColor = if (password == confirmPassword) BorderGray else com.example.sd_smart_parking_app.ui.theme.ErrorRed,
+                        focusedBorderColor = if (password == confirmPassword) DarkText else ErrorRed,
+                        unfocusedBorderColor = if (password == confirmPassword) BorderGray else ErrorRed,
                         focusedLabelColor = DarkText,
                         unfocusedLabelColor = MediumGray
                     ),
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
-                    singleLine = true
+                    singleLine = true,
+                    enabled = !isLoading
+                )
+            }
+
+            if (errorMessage != null) {
+                Text(
+                    text = errorMessage!!,
+                    color = ErrorRed,
+                    style = Typography.bodySmall,
+                    modifier = Modifier.padding(top = Spacing.md)
                 )
             }
 
@@ -165,8 +278,35 @@ fun RegisterScreen(
             // Register Button
             PrimaryButton(
                 text = "Register",
-                onClick = { if (isFormValid) onRegisterClick(name, email, password) },
-                enabled = isFormValid
+                onClick = {
+                    if (isFormValid && !isLoading) {
+                        isLoading = true
+                        errorMessage = null
+                        auth.createUserWithEmailAndPassword(email, password)
+                            .addOnCompleteListener { task ->
+                                if (task.isSuccessful) {
+                                    val user = auth.currentUser
+                                    val profileUpdates = UserProfileChangeRequest.Builder()
+                                        .setDisplayName(name)
+                                        .build()
+
+                                    user?.updateProfile(profileUpdates)
+                                        ?.addOnCompleteListener { profileTask ->
+                                            isLoading = false
+                                            if (profileTask.isSuccessful) {
+                                                onRegisterClick(name, email, phone, vehicleModel, vehiclePlate, role, password)
+                                            } else {
+                                                errorMessage = profileTask.exception?.localizedMessage ?: "Error updating profile"
+                                            }
+                                        }
+                                } else {
+                                    isLoading = false
+                                    errorMessage = task.exception?.localizedMessage ?: "Error registering user"
+                                }
+                            }
+                    }
+                },
+                enabled = isFormValid && !isLoading
             )
 
             Spacer(modifier = Modifier.height(Spacing.lg))
@@ -183,7 +323,7 @@ fun RegisterScreen(
                     text = "Sign In",
                     style = Typography.labelLarge,
                     color = NavigationBlue,
-                    modifier = Modifier.clickable { onLoginClick() }
+                    modifier = Modifier.clickable(enabled = !isLoading) { onLoginClick() }
                 )
             }
             
@@ -196,6 +336,6 @@ fun RegisterScreen(
 @Composable
 fun RegisterScreenPreview() {
     SmartParkingTheme {
-        RegisterScreen(onRegisterClick = { _, _, _ -> }, onLoginClick = {})
+        RegisterScreen(onRegisterClick = { _, _, _, _, _, _, _ -> }, onLoginClick = {})
     }
 }

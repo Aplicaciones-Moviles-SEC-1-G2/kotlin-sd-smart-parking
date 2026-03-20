@@ -18,7 +18,6 @@ object NavRoutes {
     const val LOGIN = "login"
     const val REGISTER = "register"
     
-    const val MAIN_GRAPH = "main_graph"
     const val HOME = "home"
     const val DETAILS = "details"
     const val NAVIGATE = "navigate"
@@ -42,7 +41,6 @@ fun SmartParkingNavGraph(
             composable(NavRoutes.LOGIN) {
                 LoginScreen(
                     onLoginClick = { email, password ->
-                        // In a real app, perform validation/auth here
                         navController.navigate(NavRoutes.HOME) {
                             popUpTo(NavRoutes.AUTH_GRAPH) { inclusive = true }
                         }
@@ -54,10 +52,10 @@ fun SmartParkingNavGraph(
             }
             composable(NavRoutes.REGISTER) {
                 RegisterScreen(
-                    onRegisterClick = { name, email, password ->
-                        // In a real app, perform validation/registration here
-                        navController.navigate(NavRoutes.HOME) {
-                            popUpTo(NavRoutes.AUTH_GRAPH) { inclusive = true }
+                    onRegisterClick = { name, email, phone, vehicleModel, vehiclePlate, role, password ->
+                        // Registration success: navigate back to login
+                        navController.navigate(NavRoutes.LOGIN) {
+                            popUpTo(NavRoutes.REGISTER) { inclusive = true }
                         }
                     },
                     onLoginClick = {
