@@ -39,6 +39,8 @@ import com.example.sd_smart_parking_app.ui.theme.NavigationBlue
 import com.example.sd_smart_parking_app.ui.theme.SmartParkingTheme
 import com.example.sd_smart_parking_app.ui.theme.Spacing
 import com.example.sd_smart_parking_app.ui.theme.Typography
+import com.example.sd_smart_parking_app.ui.theme.ErrorRed
+import com.google.firebase.auth.FirebaseAuth
 
 @Composable
 fun LoginScreen(
@@ -48,6 +50,11 @@ fun LoginScreen(
 ) {
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
+    
+    var isLoading by remember { mutableStateOf(false) }
+    var errorMessage by remember { mutableStateOf<String?>(null) }
+
+    val auth = remember { FirebaseAuth.getInstance() }
 
     val isFormValid = email.isNotBlank() && password.isNotBlank()
 
@@ -99,7 +106,8 @@ fun LoginScreen(
                         unfocusedLabelColor = MediumGray
                     ),
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
-                    singleLine = true
+                    singleLine = true,
+                    enabled = !isLoading
                 )
 
                 OutlinedTextField(
@@ -116,7 +124,17 @@ fun LoginScreen(
                         unfocusedLabelColor = MediumGray
                     ),
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
-                    singleLine = true
+                    singleLine = true,
+                    enabled = !isLoading
+                )
+            }
+
+            if (errorMessage != null) {
+                Text(
+                    text = errorMessage!!,
+                    color = ErrorRed,
+                    style = Typography.bodySmall,
+                    modifier = Modifier.padding(top = Spacing.md)
                 )
             }
 
@@ -124,9 +142,23 @@ fun LoginScreen(
 
             // Login Button
             PrimaryButton(
-                text = "Log In",
-                onClick = { if (isFormValid) onLoginClick(email, password) },
-                enabled = isFormValid
+                text = if (isLoading) "Signing in..." else "Log In",
+                onClick = { 
+                    if (isFormValid && !isLoading) {
+                        isLoading = true
+                        errorMessage = null
+                        auth.signInWithEmailAndPassword(email, password)
+                            .addOnCompleteListener { task ->
+                                isLoading = false
+                                if (task.isSuccessful) {
+                                    onLoginClick(email, password)
+                                } else {
+                                    errorMessage = task.exception?.localizedMessage ?: "Login failed"
+                                }
+                            }
+                    }
+                },
+                enabled = isFormValid && !isLoading
             )
 
             Spacer(modifier = Modifier.height(Spacing.md))
@@ -152,7 +184,7 @@ fun LoginScreen(
                     text = "Register",
                     style = Typography.labelLarge,
                     color = NavigationBlue,
-                    modifier = Modifier.clickable { onRegisterClick() }
+                    modifier = Modifier.clickable(enabled = !isLoading) { onRegisterClick() }
                 )
             }
         }
