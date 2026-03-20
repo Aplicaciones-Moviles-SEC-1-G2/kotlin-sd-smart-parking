@@ -18,7 +18,6 @@ object NavRoutes {
     const val LOGIN = "login"
     const val REGISTER = "register"
     
-    const val MAIN_GRAPH = "main_graph"
     const val HOME = "home"
     const val DETAILS = "details"
     const val NAVIGATE = "navigate"
