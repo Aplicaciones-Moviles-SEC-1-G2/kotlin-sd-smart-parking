@@ -1,7 +1,5 @@
 package com.example.sd_smart_parking_app.ui.screens.profile
 
-import androidx.compose.ui.tooling.preview.Preview
-import com.example.sd_smart_parking_app.ui.theme.SmartParkingTheme
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -16,29 +14,45 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.sd_smart_parking_app.data.model.UserProfile
+import com.example.sd_smart_parking_app.data.repository.ParkingRepository
 import com.example.sd_smart_parking_app.ui.theme.BackgroundLightGray
 import com.example.sd_smart_parking_app.ui.theme.BackgroundWhite
 import com.example.sd_smart_parking_app.ui.theme.CornerRadius
 import com.example.sd_smart_parking_app.ui.theme.Elevation
+import com.example.sd_smart_parking_app.ui.theme.SmartParkingTheme
 import com.example.sd_smart_parking_app.ui.theme.Spacing
 import com.example.sd_smart_parking_app.ui.theme.Typography
 import com.example.sd_smart_parking_app.ui.theme.WarningYellow
 import com.example.sd_smart_parking_app.ui.theme.White
+import com.google.firebase.auth.FirebaseAuth
 
 @Composable
 fun ProfileScreen(
     modifier: Modifier = Modifier
 ) {
+    val repository = remember { ParkingRepository() }
+    var userProfile by remember { mutableStateOf(UserProfile()) }
+    val currentUser = FirebaseAuth.getInstance().currentUser
+
+    LaunchedEffect(currentUser) {
+        currentUser?.uid?.let { uid ->
+            repository.getUserProfile(uid) { profile ->
+                userProfile = profile
+            }
+        }
+    }
+
     Scaffold(
         modifier = modifier.fillMaxSize()
     ) { paddingValues ->
@@ -107,12 +121,12 @@ fun ProfileScreen(
 
                             Column {
                                 Text(
-                                    text = "Student User",
+                                    text = userProfile.name.ifEmpty { "User Name" },
                                     style = Typography.headlineMedium,
                                     fontWeight = FontWeight.Bold
                                 )
                                 Text(
-                                    text = "student@uniandes.edu.co",
+                                    text = userProfile.email.ifEmpty { "user@email.com" },
                                     style = Typography.bodySmall
                                 )
                             }
@@ -124,7 +138,7 @@ fun ProfileScreen(
                         }
                     }
 
-                    // Estadísticas
+                    // Estadísticas (Simuladas por ahora)
                     Row(
                         modifier = Modifier
                             .fillMaxWidth(),
@@ -132,15 +146,15 @@ fun ProfileScreen(
                     ) {
                         StatisticItem(
                             label = "Total Visits",
-                            value = "47"
+                            value = "0"
                         )
                         StatisticItem(
                             label = "Avg Wait (min)",
-                            value = "8.5"
+                            value = "0"
                         )
                         StatisticItem(
-                            label = "Avg Travel time\nmin",
-                            value = "25"
+                            label = "Avg Travel\nmin",
+                            value = "0"
                         )
                     }
                 }
@@ -160,21 +174,27 @@ fun ProfileScreen(
                 AccountCard(
                     icon = "📧",
                     label = "Email",
-                    value = "student@uniandes.edu.co"
+                    value = userProfile.email.ifEmpty { "Not set" }
                 )
 
                 // Card de Teléfono
                 AccountCard(
                     icon = "📱",
                     label = "Phone",
-                    value = "+57 300 123 4567"
+                    value = userProfile.phone.ifEmpty { "Not set" }
                 )
 
-                // Card de Vehículo
+                // Card de Vehículo (Muestra el primer carro si existe)
+                val vehicleInfo = if (userProfile.cars.isNotEmpty()) {
+                    "${userProfile.cars[0].plate} • ${userProfile.cars[0].name}"
+                } else {
+                    "No vehicle registered"
+                }
+                
                 AccountCard(
                     icon = "🚗",
                     label = "Vehicle",
-                    value = "ABC-123 • Toyota Corolla"
+                    value = vehicleInfo
                 )
             }
 
@@ -322,7 +342,6 @@ fun PreferenceCard(
                 )
             }
 
-            // Toggle simple (podría ser mejorado con un Switch real)
             Box(
                 modifier = Modifier
                     .size(40.dp)

@@ -1,7 +1,5 @@
 package com.example.sd_smart_parking_app.ui.screens.details
 
-import androidx.compose.ui.tooling.preview.Preview
-import com.example.sd_smart_parking_app.ui.theme.SmartParkingTheme
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -13,24 +11,23 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.unit.dp
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.sp
-import com.example.sd_smart_parking_app.data.model.Floor
+import com.example.sd_smart_parking_app.data.model.ParkingConfig
+import com.example.sd_smart_parking_app.data.model.ParkingSpot
+import com.example.sd_smart_parking_app.data.repository.ParkingRepository
 import com.example.sd_smart_parking_app.ui.components.FloorCard
-import com.example.sd_smart_parking_app.ui.theme.BackgroundLightGray
 import com.example.sd_smart_parking_app.ui.theme.BackgroundWhite
 import com.example.sd_smart_parking_app.ui.theme.CornerRadius
-import com.example.sd_smart_parking_app.ui.theme.DarkText
 import com.example.sd_smart_parking_app.ui.theme.HighAvailabilityGreen
+import com.example.sd_smart_parking_app.ui.theme.SmartParkingTheme
 import com.example.sd_smart_parking_app.ui.theme.Spacing
 import com.example.sd_smart_parking_app.ui.theme.Typography
 import com.example.sd_smart_parking_app.ui.theme.WarningYellow
@@ -39,33 +36,22 @@ import com.example.sd_smart_parking_app.ui.theme.WarningYellow
 fun DetailsScreen(
     modifier: Modifier = Modifier
 ) {
-    // Datos de ejemplo de pisos
-    val floors = listOf(
-        Floor(
-            floorNumber = 1,
-            totalSpots = 30,
-            availableSpots = 13,
-            occupiedSpots = 17,
-            availabilityPercentage = 57,
-            status = "Medium"
-        ),
-        Floor(
-            floorNumber = 2,
-            totalSpots = 30,
-            availableSpots = 21,
-            occupiedSpots = 9,
-            availabilityPercentage = 30,
-            status = "Medium"
-        ),
-        Floor(
-            floorNumber = 3,
-            totalSpots = 30,
-            availableSpots = 19,
-            occupiedSpots = 11,
-            availabilityPercentage = 37,
-            status = "Medium"
-        )
-    )
+    val repository = remember { ParkingRepository() }
+    var parkingConfig by remember { mutableStateOf(ParkingConfig()) }
+    var parkingSpots by remember { mutableStateOf<List<ParkingSpot>>(emptyList()) }
+
+    LaunchedEffect(Unit) {
+        repository.getParkingConfig { config ->
+            parkingConfig = config
+        }
+        repository.getParkingSpots { spots ->
+            parkingSpots = spots
+        }
+    }
+
+    val totalSpots = parkingConfig.numberOfFloors * parkingConfig.spotsPerFloor
+    val availableSpots = parkingSpots.count { it.isAvailable }
+    val occupiedSpots = parkingSpots.count { !it.isAvailable && it.floor > 0 } // Basic filter
 
     Scaffold(
         modifier = modifier.fillMaxSize()
@@ -148,7 +134,7 @@ fun DetailsScreen(
                 ) {
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
                         Text(
-                            text = "120",
+                            text = totalSpots.toString(),
                             style = Typography.displaySmall
                         )
                         Text(
@@ -158,7 +144,7 @@ fun DetailsScreen(
                     }
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
                         Text(
-                            text = "69",
+                            text = availableSpots.toString(),
                             style = Typography.displaySmall
                         )
                         Text(
@@ -168,7 +154,7 @@ fun DetailsScreen(
                     }
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
                         Text(
-                            text = "51",
+                            text = (totalSpots - availableSpots).toString(),
                             style = Typography.displaySmall
                         )
                         Text(
@@ -191,13 +177,22 @@ fun DetailsScreen(
                 modifier = Modifier.padding(horizontal = Spacing.lg),
                 verticalArrangement = Arrangement.spacedBy(Spacing.md)
             ) {
-                floors.forEach { floor ->
+                for (floorNum in 1..parkingConfig.numberOfFloors) {
+                    val spotsInFloor = parkingSpots.filter { it.floor == floorNum }
+                    val floorTotal = parkingConfig.spotsPerFloor
+                    val floorAvailable = spotsInFloor.count { it.isAvailable }
+                    val floorPercentage = if (floorTotal > 0) (floorAvailable * 100) / floorTotal else 0
+                    
                     FloorCard(
-                        floorNumber = floor.floorNumber,
-                        availableSpots = floor.availableSpots,
-                        totalSpots = floor.totalSpots,
-                        availabilityPercentage = floor.availabilityPercentage,
-                        availabilityStatus = floor.status
+                        floorNumber = floorNum,
+                        availableSpots = floorAvailable,
+                        totalSpots = floorTotal,
+                        availabilityPercentage = floorPercentage,
+                        availabilityStatus = when {
+                            floorPercentage > 60 -> "High"
+                            floorPercentage > 30 -> "Medium"
+                            else -> "Low"
+                        }
                     )
                 }
             }

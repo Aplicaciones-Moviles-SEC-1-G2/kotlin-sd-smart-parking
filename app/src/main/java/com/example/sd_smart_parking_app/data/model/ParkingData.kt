@@ -1,44 +1,37 @@
 package com.example.sd_smart_parking_app.data.model
 
-data class ParkingLot(
-    val id: String,
-    val name: String,
-    val location: String,
-    val totalSpots: Int,
-    val availableSpots: Int,
-    val occupancyPercentage: Int,
-    val waitTimeMinutes: Int,
-    val floors: List<Floor>
+import com.google.firebase.Timestamp
+
+// config/parking
+data class ParkingConfig(
+    var parkingName: String = "",
+    var numberOfFloors: Int = 0,
+    var spotsPerFloor: Int = 0,
+    var openingHour: Int = 0,
+    var closingHour: Int = 0,
+    var hourlyRate: Double = 0.0
 )
 
-data class Floor(
-    val floorNumber: Int,
-    val totalSpots: Int,
-    val availableSpots: Int,
-    val occupiedSpots: Int,
-    val availabilityPercentage: Int,
-    val status: String // "High", "Medium", "Low"
+// parkingSpots/{id}
+data class ParkingSpot(
+    var id: String = "",
+    var number: Int = 0,
+    var floor: Int = 0,
+    var isAvailable: Boolean = true,
+    var currentPlate: String = ""
 )
 
-data class ParkingHistory(
-    val id: String,
-    val date: String,
-    val location: String,
-    val floorNumber: Int,
-    val spaceNumber: String,
-    val status: String, // "Completed", "Cancelled"
-    val entryTime: String?,
-    val waitTimeMinutes: Int?,
-    val durationMinutes: Int?
+// users/{uid}
+data class UserCar(
+    var name: String = "", 
+    var plate: String = ""
 )
 
 data class UserProfile(
-    val name: String,
-    val email: String,
-    val phone: String,
-    val vehiclePlate: String,
-    val vehicleModel: String,
-    val totalVisits: Int,
-    val averageWaitTime: Double,
-    val averageTravelTime: Double
+    var name: String = "",
+    var email: String = "",
+    var phone: String = "",
+    var role: String = "driver",
+    var cars: List<UserCar> = emptyList(),
+    var createdAt: Timestamp? = null
 )
