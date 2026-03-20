@@ -60,4 +60,10 @@ dependencies {
     implementation(platform("com.google.firebase:firebase-bom:34.11.0"))
     implementation("com.google.firebase:firebase-auth")
     implementation(libs.firebase.firestore)
+
+    // Location Services
+    implementation("com.google.android.gms:play-services-location:21.0.1")
+    implementation("com.google.android.gms:play-services-maps:18.2.0")
+    // Permissions
+    implementation("androidx.activity:activity-compose:1.8.1")
 }
