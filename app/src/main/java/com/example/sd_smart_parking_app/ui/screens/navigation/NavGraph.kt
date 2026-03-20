@@ -5,12 +5,17 @@ import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.navigation
+import com.example.sd_smart_parking_app.data.model.UserProfile
+import com.example.sd_smart_parking_app.data.model.UserCar
+import com.example.sd_smart_parking_app.data.repository.ParkingRepository
 import com.example.sd_smart_parking_app.ui.screens.details.DetailsScreen
 import com.example.sd_smart_parking_app.ui.screens.history.HistoryScreen
 import com.example.sd_smart_parking_app.ui.screens.login.LoginScreen
 import com.example.sd_smart_parking_app.ui.screens.register.RegisterScreen
 import com.example.sd_smart_parking_app.ui.screens.home.HomeScreen
 import com.example.sd_smart_parking_app.ui.screens.profile.ProfileScreen
+import com.google.firebase.Timestamp
+import com.google.firebase.auth.FirebaseAuth
 
 // Rutas de navegación
 object NavRoutes {
@@ -29,6 +34,8 @@ object NavRoutes {
 fun SmartParkingNavGraph(
     navController: NavHostController
 ) {
+    val repository = ParkingRepository()
+
     NavHost(
         navController = navController,
         startDestination = NavRoutes.AUTH_GRAPH
@@ -53,9 +60,23 @@ fun SmartParkingNavGraph(
             composable(NavRoutes.REGISTER) {
                 RegisterScreen(
                     onRegisterClick = { name, email, phone, vehicleModel, vehiclePlate, role, password ->
-                        // Registration success: navigate back to login
-                        navController.navigate(NavRoutes.LOGIN) {
-                            popUpTo(NavRoutes.REGISTER) { inclusive = true }
+                        val uid = FirebaseAuth.getInstance().currentUser?.uid
+                        if (uid != null) {
+                            val profile = UserProfile(
+                                name = name,
+                                email = email,
+                                role = role.lowercase(),
+                                phone = phone,
+                                cars = listOf(UserCar(name = vehicleModel, plate = vehiclePlate)),
+                                createdAt = Timestamp.now()
+                            )
+                            repository.saveUserProfile(uid, profile) { success ->
+                                if (success) {
+                                    navController.navigate(NavRoutes.LOGIN) {
+                                        popUpTo(NavRoutes.REGISTER) { inclusive = true }
+                                    }
+                                }
+                            }
                         }
                     },
                     onLoginClick = {
