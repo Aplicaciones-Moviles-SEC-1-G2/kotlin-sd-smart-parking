@@ -12,19 +12,21 @@ import com.google.firebase.firestore.QuerySnapshot
 class ParkingRepository {
     private val db = Firebase.firestore
 
-    // Obtener configuración del parqueadero
+    // Obtener configuración del parqueadero con actualizaciones en vivo
     fun getParkingConfig(onSuccess: (ParkingConfig) -> Unit) {
         db.collection("config").document("parking")
-            .get()
-            .addOnSuccessListener { doc ->
-                val config = doc.toObject(ParkingConfig::class.java)
+            .addSnapshotListener { snapshot, error ->
+                if (error != null) {
+                    return@addSnapshotListener
+                }
+                val config = snapshot?.toObject(ParkingConfig::class.java)
                 if (config != null) {
                     onSuccess(config)
                 }
             }
     }
 
-    // Obtener estado de los cupos (Para la HomeScreen)
+    // Obtener estado de los cupos con actualizaciones en vivo
     fun getParkingSpots(onSuccess: (List<ParkingSpot>) -> Unit) {
         db.collection("parkingSpots")
             .addSnapshotListener { snapshot: QuerySnapshot?, error ->

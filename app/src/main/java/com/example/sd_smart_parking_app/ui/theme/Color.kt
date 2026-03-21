@@ -24,6 +24,11 @@ val HighAvailabilityGreen = Color(0xFF00C94B)
 val MediumAvailabilityOrange = Color(0xFFFFA500)
 val LowAvailabilityRed = Color(0xFFFF3333)
 
+val DeepBlack = Color(0xFF000000)
+val QueueBackground = Color(0xFFFFF3E0)
+val QueueBorder = Color(0xFFFFCC80)
+val LastUpdateGray = Color(0xFF9E9E9E)
+
 // Fondo
 val BackgroundWhite = Color(0xFFFFFFFF)
 val BackgroundLightGray = Color(0xFFFAFAFA)
