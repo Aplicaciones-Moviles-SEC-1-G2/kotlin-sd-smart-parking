@@ -1,0 +1,80 @@
+# yaml-language-server: $schema=https://coderabbit.ai/integrations/schema.v2.json
+language: "en-US"
+
+reviews:
+  profile: "assertive"
+  request_changes_workflow: true
+  high_level_summary: true
+  poem: false
+  review_status: true
+  collapse_walkthrough: false
+  auto_review:
+    enabled: true
+    drafts: false
+
+  path_filters:
+    - "!**/node_modules/**"
+    - "!**/dist/**"
+    - "!**/.wrangler/**"
+    - "!**/worker-configuration.d.ts"
+    - "!.github/**"
+    - "!CONTRIBUTING.md"
+    - "!README.md"
+    - "!.coderabbit.yml"
+
+  path_instructions:
+    - path: "**/*.ts"
+      instructions: |
+        ## Runtime Constraints (V8 Isolates — not Node.js)
+        - Flag any Node.js-only APIs (fs, path, os, net, child_process) without the nodejs_compat flag enabled.
+        - Flag synchronous blocking operations — everything must be async.
+        - Flag global mutable state (variables mutated between requests). Isolate reuse is non-deterministic; global state is not safe for per-request data.
+        - Flag floating Promises (Promises created but not awaited and not passed to ctx.waitUntil()).
+          Use `ctx.waitUntil()` for background work that must outlive the response.
+
+        ## Secrets & Security
+        - Flag any hardcoded secrets, tokens, API keys, or credentials in source code or config files.
+        - Flag use of `Math.random()` for security-sensitive operations — use `crypto.getRandomValues()` or Web Crypto API.
+        - Flag missing input validation on request bodies before processing.
+        - Flag missing CORS headers, or overly permissive `Access-Control-Allow-Origin: *` on sensitive endpoints.
+
+        ## Bindings & Environment
+        - Flag direct REST API calls to Cloudflare services (KV, R2, D1, Queues) — use bindings via `env` instead.
+        - Flag hand-written `Env` interface — it must be generated via `wrangler types`.
+        - Flag access to `env` bindings outside the request handler scope.
+
+        ## Performance & Streaming
+        - Flag buffering of large request or response bodies in memory. Use `TransformStream` and `pipeTo()`.
+        - Flag sequential `await` calls to independent async operations — use `Promise.all()`.
+        - Flag subrequests that could exceed the per-request subrequest limit (currently 1000).
+
+        ## Observability
+        - Flag missing `console.log` or structured logging for errors in production paths.
+        - Encourage use of `ctx.waitUntil()` for async logging/metrics so they don't block the response.
+
+        ## Code Quality
+        - Flag `any` types — all bindings and request/response types must be explicit.
+        - Flag `TODO`, `FIXME`, commented-out code.
+
+    - path: "**/wrangler.toml"
+      instructions: |
+        - Flag missing or outdated `compatibility_date` — it should be kept current.
+        - Flag absence of `nodejs_compat` flag if the codebase imports Node.js built-ins.
+        - Flag hardcoded secrets in `[vars]` — secrets must use `wrangler secret put`.
+        - Flag binding declarations that don't match what's actually used in the Worker code.
+        - Flag missing environment separation (production, staging) via `[env.*]`.
+
+    - path: "**/*.test.ts"
+      instructions: |
+        - Flag tests not using `@cloudflare/vitest-pool-workers` — this is the correct Workers test runner.
+        - Flag mocking of the Workers runtime itself when real isolate testing is possible.
+        - Flag tests that would pass due to auto-injected `nodejs_compat` but fail in production without the flag.
+
+chat:
+  auto_reply: true
+
+knowledge_base:
+  web_search:
+    enabled: true
+  learnings:
+    scope: auto
