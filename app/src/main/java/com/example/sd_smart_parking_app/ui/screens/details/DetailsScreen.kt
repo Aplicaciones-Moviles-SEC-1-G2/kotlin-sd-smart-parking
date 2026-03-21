@@ -17,6 +17,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.sp
@@ -31,12 +32,17 @@ import com.example.sd_smart_parking_app.ui.theme.SmartParkingTheme
 import com.example.sd_smart_parking_app.ui.theme.Spacing
 import com.example.sd_smart_parking_app.ui.theme.Typography
 import com.example.sd_smart_parking_app.ui.theme.WarningYellow
+import kotlinx.coroutines.delay
+import com.example.sd_smart_parking_app.viewmodel.NotificationViewModel
+import androidx.compose.material3.Button
+import kotlin.random.Random
 
 @Composable
 fun DetailsScreen(
     modifier: Modifier = Modifier
 ) {
     val repository = remember { ParkingRepository() }
+    val context = LocalContext.current
     var parkingConfig by remember { mutableStateOf(ParkingConfig()) }
     var parkingSpots by remember { mutableStateOf<List<ParkingSpot>>(emptyList()) }
 
@@ -49,9 +55,36 @@ fun DetailsScreen(
         }
     }
 
+    // Actualizar disponibilidad cada 10 segundos con datos simulados (para pruebas)
+    LaunchedEffect(Unit) {
+        while (true) {
+            delay(10000) // Actualizar cada 10 segundos para pruebas
+            // Simular cambios en parkingSpots
+            val updatedSpots = parkingSpots.map { spot ->
+                // Cambiar aleatoriamente si un espacio está disponible
+                spot.copy(isAvailable = Random.nextBoolean())
+            }
+            parkingSpots = updatedSpots
+        }
+    }
+
+    // ViewModel para notificaciones
+    val notificationViewModel = remember { NotificationViewModel(context = context) }
+
+    // Verificar disponibilidad y enviar notificaciones
+    LaunchedEffect(parkingSpots) {
+        if (parkingSpots.isNotEmpty()) {
+            try {
+                notificationViewModel.sendTestNotification()
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
+        }
+    }
+
     val totalSpots = parkingConfig.numberOfFloors * parkingConfig.spotsPerFloor
     val availableSpots = parkingSpots.count { it.isAvailable }
-    val occupiedSpots = parkingSpots.count { !it.isAvailable && it.floor > 0 } // Basic filter
+    val occupiedSpots = parkingSpots.count { !it.isAvailable && it.floor > 0 }
 
     Scaffold(
         modifier = modifier.fillMaxSize()
@@ -182,7 +215,7 @@ fun DetailsScreen(
                     val floorTotal = parkingConfig.spotsPerFloor
                     val floorAvailable = spotsInFloor.count { it.isAvailable }
                     val floorPercentage = if (floorTotal > 0) (floorAvailable * 100) / floorTotal else 0
-                    
+
                     FloorCard(
                         floorNumber = floorNum,
                         availableSpots = floorAvailable,
