@@ -1,6 +1,7 @@
 package com.example.sd_smart_parking_app.data.model
 
 import com.google.firebase.Timestamp
+import com.google.firebase.firestore.PropertyName
 
 // config/parking
 data class ParkingConfig(
@@ -9,16 +10,17 @@ data class ParkingConfig(
     var spotsPerFloor: Int = 0,
     var openingHour: Int = 0,
     var closingHour: Int = 0,
-    var hourlyRate: Double = 0.0
+    var hourlyRate: Double = 0.0,
+    var entryQueueLength: Int = 0
 )
 
 // parkingSpots/{id}
 data class ParkingSpot(
-    var id: String = "",
-    var number: Int = 0,
-    var floor: Int = 0,
-    var isAvailable: Boolean = true,
-    var currentPlate: String = ""
+    @get:PropertyName("id") @set:PropertyName("id") var id: String = "",
+    @get:PropertyName("number") @set:PropertyName("number") var number: Int = 0,
+    @get:PropertyName("floor") @set:PropertyName("floor") var floor: Int = 0,
+    @get:PropertyName("isAvailable") @set:PropertyName("isAvailable") var isAvailable: Boolean = true,
+    @get:PropertyName("currentPlate") @set:PropertyName("currentPlate") var currentPlate: String = ""
 )
 
 // users/{uid}
