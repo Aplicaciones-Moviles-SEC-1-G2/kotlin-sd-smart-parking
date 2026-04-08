@@ -14,6 +14,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
@@ -24,8 +25,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.example.sd_smart_parking_app.data.model.UserProfile
-import com.example.sd_smart_parking_app.data.repository.ParkingRepository
+import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.sd_smart_parking_app.ui.theme.BackgroundLightGray
 import com.example.sd_smart_parking_app.ui.theme.BackgroundWhite
 import com.example.sd_smart_parking_app.ui.theme.CornerRadius
@@ -35,188 +35,189 @@ import com.example.sd_smart_parking_app.ui.theme.Spacing
 import com.example.sd_smart_parking_app.ui.theme.Typography
 import com.example.sd_smart_parking_app.ui.theme.WarningYellow
 import com.example.sd_smart_parking_app.ui.theme.White
-import com.google.firebase.auth.FirebaseAuth
+import com.example.sd_smart_parking_app.viewmodel.ProfileViewModel
 
 @Composable
 fun ProfileScreen(
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    viewModel: ProfileViewModel = viewModel()
 ) {
-    val repository = remember { ParkingRepository() }
-    var userProfile by remember { mutableStateOf(UserProfile()) }
-    val currentUser = FirebaseAuth.getInstance().currentUser
-
-    LaunchedEffect(currentUser) {
-        currentUser?.uid?.let { uid ->
-            repository.getUserProfile(uid) { profile ->
-                userProfile = profile
-            }
-        }
-    }
+    val userProfile by viewModel.userProfile.collectAsState()
+    val isLoading by viewModel.isLoading.collectAsState()
 
     Scaffold(
         modifier = modifier.fillMaxSize()
     ) { paddingValues ->
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .background(BackgroundWhite)
-                .padding(paddingValues)
-                .verticalScroll(rememberScrollState())
-        ) {
-            // Header
-            Column(
-                modifier = Modifier.padding(Spacing.lg)
+        if (isLoading) {
+            Box(
+                modifier = Modifier.fillMaxSize(),
+                contentAlignment = Alignment.Center
             ) {
-                Text(
-                    text = "Profile",
-                    style = Typography.headlineLarge
-                )
-                Text(
-                    text = "Manage your account and preferences",
-                    style = Typography.bodySmall,
-                    modifier = Modifier.padding(top = Spacing.xs)
-                )
+                CircularProgressIndicator(color = WarningYellow)
             }
-
-            // Card de perfil del usuario (Amarillo)
-            Card(
+        } else {
+            Column(
                 modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = Spacing.lg),
-                colors = CardDefaults.cardColors(
-                    containerColor = WarningYellow
-                ),
-                shape = RoundedCornerShape(CornerRadius.lg),
-                elevation = CardDefaults.cardElevation(defaultElevation = Elevation.md)
+                    .fillMaxSize()
+                    .background(BackgroundWhite)
+                    .padding(paddingValues)
+                    .verticalScroll(rememberScrollState())
             ) {
+                // Header
                 Column(
+                    modifier = Modifier.padding(Spacing.lg)
+                ) {
+                    Text(
+                        text = "Profile",
+                        style = Typography.headlineLarge
+                    )
+                    Text(
+                        text = "Manage your account and preferences",
+                        style = Typography.bodySmall,
+                        modifier = Modifier.padding(top = Spacing.xs)
+                    )
+                }
+
+                // Card de perfil del usuario (Amarillo)
+                Card(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(Spacing.lg)
+                        .padding(horizontal = Spacing.lg),
+                    colors = CardDefaults.cardColors(
+                        containerColor = WarningYellow
+                    ),
+                    shape = RoundedCornerShape(CornerRadius.lg),
+                    elevation = CardDefaults.cardElevation(defaultElevation = Elevation.md)
                 ) {
-                    // Nombre de usuario y avatar
-                    Row(
+                    Column(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(bottom = Spacing.lg),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
+                            .padding(Spacing.lg)
                     ) {
+                        // Nombre de usuario y avatar
                         Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(Spacing.md)
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(bottom = Spacing.lg),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
                         ) {
-                            // Avatar
-                            Box(
-                                modifier = Modifier
-                                    .size(56.dp)
-                                    .background(
-                                        color = White,
-                                        shape = RoundedCornerShape(50.dp)
-                                    ),
-                                contentAlignment = Alignment.Center
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(Spacing.md)
                             ) {
-                                Text("👤", fontSize = 28.sp)
+                                // Avatar
+                                Box(
+                                    modifier = Modifier
+                                        .size(56.dp)
+                                        .background(
+                                            color = White,
+                                            shape = RoundedCornerShape(50.dp)
+                                        ),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Text("👤", fontSize = 28.sp)
+                                }
+
+                                Column {
+                                    Text(
+                                        text = userProfile.name.ifEmpty { "User Name" },
+                                        style = Typography.headlineMedium,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                    Text(
+                                        text = userProfile.email.ifEmpty { "user@email.com" },
+                                        style = Typography.bodySmall
+                                    )
+                                }
                             }
 
-                            Column {
-                                Text(
-                                    text = userProfile.name.ifEmpty { "User Name" },
-                                    style = Typography.headlineMedium,
-                                    fontWeight = FontWeight.Bold
-                                )
-                                Text(
-                                    text = userProfile.email.ifEmpty { "user@email.com" },
-                                    style = Typography.bodySmall
-                                )
+                            // Botón de editar
+                            IconButton(onClick = { }) {
+                                Text("✏️", fontSize = 20.sp)
                             }
                         }
 
-                        // Botón de editar
-                        IconButton(onClick = { }) {
-                            Text("✏️", fontSize = 20.sp)
+                        // Estadísticas (Simuladas por ahora)
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceEvenly
+                        ) {
+                            StatisticItem(
+                                label = "Total Visits",
+                                value = "0"
+                            )
+                            StatisticItem(
+                                label = "Avg Wait (min)",
+                                value = "0"
+                            )
+                            StatisticItem(
+                                label = "Avg Travel\nmin",
+                                value = "0"
+                            )
                         }
                     }
+                }
 
-                    // Estadísticas (Simuladas por ahora)
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceEvenly
-                    ) {
-                        StatisticItem(
-                            label = "Total Visits",
-                            value = "0"
-                        )
-                        StatisticItem(
-                            label = "Avg Wait (min)",
-                            value = "0"
-                        )
-                        StatisticItem(
-                            label = "Avg Travel\nmin",
-                            value = "0"
-                        )
+                // Sección Account Information
+                Column(
+                    modifier = Modifier.padding(horizontal = Spacing.lg, vertical = Spacing.lg)
+                ) {
+                    Text(
+                        text = "Account Information",
+                        style = Typography.headlineSmall,
+                        modifier = Modifier.padding(bottom = Spacing.md)
+                    )
+
+                    // Card de Email
+                    AccountCard(
+                        icon = "📧",
+                        label = "Email",
+                        value = userProfile.email.ifEmpty { "Not set" }
+                    )
+
+                    // Card de Teléfono
+                    AccountCard(
+                        icon = "📱",
+                        label = "Phone",
+                        value = userProfile.phone.ifEmpty { "Not set" }
+                    )
+
+                    // Card de Vehículo (Muestra el primer carro si existe)
+                    val vehicleInfo = if (userProfile.cars.isNotEmpty()) {
+                        "${userProfile.cars[0].plate} • ${userProfile.cars[0].name}"
+                    } else {
+                        "No vehicle registered"
                     }
+                    
+                    AccountCard(
+                        icon = "🚗",
+                        label = "Vehicle",
+                        value = vehicleInfo
+                    )
                 }
-            }
 
-            // Sección Account Information
-            Column(
-                modifier = Modifier.padding(horizontal = Spacing.lg, vertical = Spacing.lg)
-            ) {
-                Text(
-                    text = "Account Information",
-                    style = Typography.headlineSmall,
-                    modifier = Modifier.padding(bottom = Spacing.md)
-                )
+                // Sección Preferences
+                Column(
+                    modifier = Modifier.padding(horizontal = Spacing.lg, vertical = Spacing.lg)
+                ) {
+                    Text(
+                        text = "Preferences",
+                        style = Typography.headlineSmall,
+                        modifier = Modifier.padding(bottom = Spacing.md)
+                    )
 
-                // Card de Email
-                AccountCard(
-                    icon = "📧",
-                    label = "Email",
-                    value = userProfile.email.ifEmpty { "Not set" }
-                )
-
-                // Card de Teléfono
-                AccountCard(
-                    icon = "📱",
-                    label = "Phone",
-                    value = userProfile.phone.ifEmpty { "Not set" }
-                )
-
-                // Card de Vehículo (Muestra el primer carro si existe)
-                val vehicleInfo = if (userProfile.cars.isNotEmpty()) {
-                    "${userProfile.cars[0].plate} • ${userProfile.cars[0].name}"
-                } else {
-                    "No vehicle registered"
+                    PreferenceCard(
+                        icon = "🔔",
+                        label = "Notifications",
+                        isEnabled = true
+                    )
                 }
-                
-                AccountCard(
-                    icon = "🚗",
-                    label = "Vehicle",
-                    value = vehicleInfo
-                )
+
+                // Espaciado inferior
+                Box(modifier = Modifier.padding(bottom = Spacing.lg))
             }
-
-            // Sección Preferences
-            Column(
-                modifier = Modifier.padding(horizontal = Spacing.lg, vertical = Spacing.lg)
-            ) {
-                Text(
-                    text = "Preferences",
-                    style = Typography.headlineSmall,
-                    modifier = Modifier.padding(bottom = Spacing.md)
-                )
-
-                PreferenceCard(
-                    icon = "🔔",
-                    label = "Notifications",
-                    isEnabled = true
-                )
-            }
-
-            // Espaciado inferior
-            Box(modifier = Modifier.padding(bottom = Spacing.lg))
         }
     }
 }
