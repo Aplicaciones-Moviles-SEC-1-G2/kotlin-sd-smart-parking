@@ -21,6 +21,9 @@ import com.example.sd_smart_parking_app.ui.theme.Spacing
 import com.example.sd_smart_parking_app.ui.theme.Typography
 import java.text.SimpleDateFormat
 import java.util.*
+import com.example.sd_smart_parking_app.viewmodel.WeatherViewModel
+import com.example.sd_smart_parking_app.ui.components.WeatherCard
+import androidx.compose.runtime.collectAsState
 
 @Composable
 fun HomeScreen(
@@ -28,6 +31,8 @@ fun HomeScreen(
     modifier: Modifier = Modifier
 ) {
     val repository = remember { ParkingRepository() }
+    val weatherViewModel = remember { WeatherViewModel() }
+    val weatherState by weatherViewModel.weatherState.collectAsState()
     var parkingConfig by remember { mutableStateOf(ParkingConfig()) }
     var parkingSpots by remember { mutableStateOf<List<ParkingSpot>>(emptyList()) }
     var lastUpdate by remember { mutableStateOf("") }
@@ -66,6 +71,17 @@ fun HomeScreen(
                 availabilityPercentage = availabilityPercentage,
                 modifier = Modifier.padding(bottom = Spacing.lg),
                 onNavigateClick = onNavigationClick
+            )
+
+            // Weather Card
+            WeatherCard(
+                weatherData = weatherState.weatherData,
+                recommendation = weatherState.recommendation,
+                isLoading = weatherState.isLoading,
+                error = weatherState.error,
+                hasRainRisk = weatherState.hasRainRisk,
+                onRefresh = { weatherViewModel.refreshWeather() },
+                modifier = Modifier.padding(horizontal = Spacing.lg, vertical = Spacing.md)
             )
 
             // Timestamp de última actualización real

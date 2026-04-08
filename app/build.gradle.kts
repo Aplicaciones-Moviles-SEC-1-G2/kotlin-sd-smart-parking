@@ -67,4 +67,15 @@ dependencies {
     implementation("com.google.android.gms:play-services-maps:18.2.0")
     // Permissions
     implementation("androidx.activity:activity-compose:1.8.1")
+
+    // Retrofit para llamadas HTTP
+    implementation("com.squareup.retrofit2:retrofit:2.9.0")
+    implementation("com.squareup.retrofit2:converter-gson:2.9.0")
+
+    // OkHttp para logging (opcional pero útil)
+    implementation("com.squareup.okhttp3:okhttp:4.11.0")
+    implementation("com.squareup.okhttp3:logging-interceptor:4.11.0")
+
+    // Gson para parseo JSON
+    implementation("com.google.code.gson:gson:2.10.1")
 }
