@@ -74,7 +74,7 @@ fun ProfileScreen(
                 ) {
                     // Columna de textos (Izquierda)
                     Column(
-                        modifier = Modifier.weight(1f) // Esto hace que la columna ocupe todo el espacio sobrante
+                        modifier = Modifier.weight(1f) // Esto hace que la columna ocupe totalmente el espacio sobrante
                     ) {
                         Text(
                             text = "Profile",
