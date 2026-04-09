@@ -9,7 +9,6 @@ import kotlinx.coroutines.flow.StateFlow
 
 class ProfileViewModel : ViewModel() {
     private val repository = ParkingRepository()
-    private val auth = FirebaseAuth.getInstance()
 
     // Información del perfil
     private val _userProfile = MutableStateFlow(UserProfile())

@@ -1,12 +1,9 @@
 package com.example.sd_smart_parking_app.data.repository
 
-import android.content.Context
-import androidx.security.crypto.EncryptedSharedPreferences
-import androidx.security.crypto.MasterKey
+
 import com.example.sd_smart_parking_app.data.model.ParkingConfig
 import com.example.sd_smart_parking_app.data.model.ParkingSpot
 import com.example.sd_smart_parking_app.data.model.UserProfile
-import com.example.sd_smart_parking_app.data.model.UserCar
 import com.google.firebase.Firebase
 import com.google.firebase.firestore.firestore
 import com.google.firebase.firestore.DocumentSnapshot
