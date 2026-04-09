@@ -27,51 +27,33 @@ import com.example.sd_smart_parking_app.ui.components.FloorCard
 import com.example.sd_smart_parking_app.ui.theme.*
 import kotlinx.coroutines.delay
 import com.example.sd_smart_parking_app.viewmodel.NotificationViewModel
+import com.example.sd_smart_parking_app.viewmodel.SharedDetailsViewModel
 import androidx.compose.material3.Button
 import kotlin.random.Random
 import java.text.SimpleDateFormat
 import java.util.*
+import androidx.compose.runtime.collectAsState
 
 @Composable
 fun DetailsScreen(
     modifier: Modifier = Modifier
 ) {
-    val repository = remember { ParkingRepository() }
+    val viewModel = remember { SharedDetailsViewModel.getInstance() }
+    LaunchedEffect(Unit) {
+        viewModel.initializeIfNeeded()
+    }
+    val detailsState by viewModel.detailsState.collectAsState()
     val context = LocalContext.current
-    var parkingConfig by remember { mutableStateOf(ParkingConfig()) }
-    var parkingSpots by remember { mutableStateOf<List<ParkingSpot>>(emptyList()) }
-    var lastUpdate by remember { mutableStateOf(SimpleDateFormat("h:mm:ss a", Locale.getDefault()).format(Date())) }
-
-    LaunchedEffect(Unit) {
-        repository.getParkingConfig { config ->
-            parkingConfig = config
-            lastUpdate = SimpleDateFormat("h:mm:ss a", Locale.getDefault()).format(Date())
-        }
-        repository.getParkingSpots { spots ->
-            parkingSpots = spots
-            lastUpdate = SimpleDateFormat("h:mm:ss a", Locale.getDefault()).format(Date())
-        }
-    }
-
-    // Actualizar disponibilidad cada 10 segundos con datos simulados (para pruebas)
-    LaunchedEffect(Unit) {
-        while (true) {
-            delay(10000) // Actualizar cada 10 segundos para pruebas
-            // Simular cambios en parkingSpots
-            val updatedSpots = parkingSpots.map { spot ->
-                // Cambiar aleatoriamente si un espacio está disponible
-                spot.copy(isAvailable = Random.nextBoolean())
-            }
-            parkingSpots = updatedSpots
-        }
-    }
-
-    // ViewModel para notificaciones
     val notificationViewModel = remember { NotificationViewModel(context = context) }
 
+    val totalSpots = detailsState.parkingConfig.numberOfFloors * detailsState.parkingConfig.spotsPerFloor
+    val availableSpots = detailsState.parkingSpots.count { it.isAvailable }
+    val occupiedSpots = totalSpots - availableSpots
+    var lastUpdate by remember { mutableStateOf(SimpleDateFormat("h:mm:ss a", Locale.getDefault()).format(Date())) }
+
     // Verificar disponibilidad y enviar notificaciones
-    LaunchedEffect(parkingSpots) {
-        if (parkingSpots.isNotEmpty()) {
+    LaunchedEffect(detailsState.parkingSpots) {
+        if (detailsState.parkingSpots.isNotEmpty()) {
             try {
                 notificationViewModel.sendTestNotification()
             } catch (e: Exception) {
@@ -79,10 +61,6 @@ fun DetailsScreen(
             }
         }
     }
-
-    val totalSpots = parkingConfig.numberOfFloors * parkingConfig.spotsPerFloor
-    val availableSpots = parkingSpots.count { it.isAvailable }
-    val occupiedSpots = totalSpots - availableSpots
 
     Scaffold(
         modifier = modifier.fillMaxSize(),
@@ -113,7 +91,7 @@ fun DetailsScreen(
                         style = Typography.bodySmall.copy(color = MediumGray)
                     )
                 }
-                
+
                 Surface(
                     modifier = Modifier.size(40.dp),
                     shape = CircleShape,
@@ -211,13 +189,13 @@ fun DetailsScreen(
             Column(
                 verticalArrangement = Arrangement.spacedBy(Spacing.md)
             ) {
-                for (floorNum in 1..parkingConfig.numberOfFloors) {
-                    val spotsInFloor = parkingSpots.filter { it.floor == floorNum }
-                    val floorTotal = parkingConfig.spotsPerFloor
+                for (floorNum in 1..detailsState.parkingConfig.numberOfFloors) {
+                    val spotsInFloor = detailsState.parkingSpots.filter { it.floor == floorNum }
+                    val floorTotal = detailsState.parkingConfig.spotsPerFloor
                     val floorAvailable = spotsInFloor.count { it.isAvailable }
-                    
+
                     val floorPercentage = if (floorTotal > 0) (floorAvailable * 100) / floorTotal else 0
-                    
+
                     FloorCard(
                         floorNumber = floorNum,
                         availableSpots = floorAvailable,
@@ -262,7 +240,7 @@ fun DetailsScreen(
                             style = Typography.bodyLarge.copy(color = Color(0xFF8D6E63))
                         )
                         Text(
-                            text = parkingConfig.entryQueueLength.toString(),
+                            text = detailsState.parkingConfig.entryQueueLength.toString(),
                             style = Typography.displayMedium.copy(
                                 fontWeight = FontWeight.Bold,
                                 color = Color(0xFF5D4037)

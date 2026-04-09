@@ -25,7 +25,7 @@ data class ParkingSpot(
 
 // users/{uid}
 data class UserCar(
-    var name: String = "", 
+    var name: String = "",
     var plate: String = ""
 )
 
@@ -36,4 +36,13 @@ data class UserProfile(
     var role: String = "driver",
     var cars: List<UserCar> = emptyList(),
     var createdAt: Timestamp? = null
+)
+
+data class Floor(
+    val floorNumber: Int = 0,
+    val totalSpots: Int = 0,
+    val availableSpots: Int = 0,
+    val occupiedSpots: Int = 0,
+    val availabilityPercentage: Int = 0,
+    val status: String = ""
 )
