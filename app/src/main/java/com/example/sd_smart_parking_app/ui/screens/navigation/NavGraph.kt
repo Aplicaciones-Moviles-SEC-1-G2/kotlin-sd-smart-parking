@@ -112,7 +112,13 @@ fun SmartParkingNavGraph(
             HistoryScreen()
         }
         composable(NavRoutes.PROFILE) {
-            ProfileScreen()
+            ProfileScreen(
+                onNavigateToLogin = {
+                    navController.navigate(NavRoutes.LOGIN) {
+                        popUpTo(NavRoutes.HOME) { inclusive = true }
+                    }
+                }
+            )
         }
     }
 }

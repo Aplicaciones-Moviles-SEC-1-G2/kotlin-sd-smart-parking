@@ -40,7 +40,8 @@ import com.example.sd_smart_parking_app.viewmodel.ProfileViewModel
 @Composable
 fun ProfileScreen(
     modifier: Modifier = Modifier,
-    viewModel: ProfileViewModel = viewModel()
+    viewModel: ProfileViewModel = viewModel(),
+    onNavigateToLogin: () -> Unit
 ) {
     val userProfile by viewModel.userProfile.collectAsState()
     val isLoading by viewModel.isLoading.collectAsState()
@@ -64,18 +65,36 @@ fun ProfileScreen(
                     .verticalScroll(rememberScrollState())
             ) {
                 // Header
-                Column(
-                    modifier = Modifier.padding(Spacing.lg)
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(Spacing.lg),
+                    verticalAlignment = Alignment.CenterVertically, // Alinea verticalmente al centro
+                    horizontalArrangement = Arrangement.SpaceBetween // Empuja los elementos a los extremos
                 ) {
-                    Text(
-                        text = "Profile",
-                        style = Typography.headlineLarge
-                    )
-                    Text(
-                        text = "Manage your account and preferences",
-                        style = Typography.bodySmall,
-                        modifier = Modifier.padding(top = Spacing.xs)
-                    )
+                    // Columna de textos (Izquierda)
+                    Column(
+                        modifier = Modifier.weight(1f) // Esto hace que la columna ocupe todo el espacio sobrante
+                    ) {
+                        Text(
+                            text = "Profile",
+                            style = Typography.headlineLarge
+                        )
+                        Text(
+                            text = "Manage your account and preferences",
+                            style = Typography.bodySmall,
+                            modifier = Modifier.padding(top = Spacing.xs)
+                        )
+                    }
+
+                    // Botón de Logout (Derecha)
+                    IconButton(
+                        onClick = {
+                            viewModel.logout { onNavigateToLogin() }
+                        }
+                    ) {
+                        Text("🚪", fontSize = 24.sp) // Puedes usar un icono de cerrar sesión
+                    }
                 }
 
                 // Card de perfil del usuario (Amarillo)
@@ -362,6 +381,8 @@ fun PreferenceCard(
 @Composable
 fun ProfileScreenPreview() {
     SmartParkingTheme {
-        ProfileScreen()
+        ProfileScreen(
+            onNavigateToLogin = {}
+        )
     }
 }

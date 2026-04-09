@@ -1,13 +1,22 @@
 package com.example.sd_smart_parking_app.viewmodel
 
-import androidx.lifecycle.ViewModel
+import android.app.Application
+import androidx.fragment.app.FragmentActivity
+import androidx.lifecycle.AndroidViewModel
+import com.example.sd_smart_parking_app.data.auth.AuthStrategy
+import com.example.sd_smart_parking_app.data.auth.BiometricAuthStrategy
+import com.example.sd_smart_parking_app.data.auth.EmailAuthStrategy
+import com.example.sd_smart_parking_app.data.repository.AuthRepository
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.UserProfileChangeRequest
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 
-class AuthViewModel : ViewModel() {
+class AuthViewModel(application: Application) : AndroidViewModel(application) {
+    
     private val auth = FirebaseAuth.getInstance()
+    private val authRepository = AuthRepository(application)
+    private var currentStrategy: AuthStrategy? = null
 
     private val _isLoading = MutableStateFlow(false)
     val isLoading: StateFlow<Boolean> = _isLoading
@@ -15,21 +24,41 @@ class AuthViewModel : ViewModel() {
     private val _errorMessage = MutableStateFlow<String?>(null)
     val errorMessage: StateFlow<String?> = _errorMessage
 
-    fun login(email: String, password: String, onSuccess: () -> Unit) {
-        if (email.isBlank() || password.isBlank()) return
+    private val _savedEmail = MutableStateFlow<String?>(null)
+    val savedEmail: StateFlow<String?> = _savedEmail
 
+    init {
+        _savedEmail.value = authRepository.getSavedEmail()
+    }
+
+    fun loginWithEmail(email: String, pass: String, onSuccess: () -> Unit) {
+        val strategy = EmailAuthStrategy(email, pass)
+        executeLoginInternal(strategy, onSuccess)
+    }
+
+    fun loginWithBiometrics(activity: FragmentActivity, onSuccess: () -> Unit) {
+        val strategy = BiometricAuthStrategy(activity, authRepository)
+        executeLoginInternal(strategy, onSuccess)
+    }
+
+    private fun executeLoginInternal(strategy: AuthStrategy, onSuccess: () -> Unit) {
+        this.currentStrategy = strategy
         _isLoading.value = true
         _errorMessage.value = null
-
-        auth.signInWithEmailAndPassword(email, password)
-            .addOnCompleteListener { task ->
-                _isLoading.value = false
-                if (task.isSuccessful) {
-                    onSuccess()
-                } else {
-                    _errorMessage.value = task.exception?.localizedMessage ?: "Error al iniciar sesión"
+        
+        strategy.login { success, error ->
+            _isLoading.value = false
+            if (success) {
+                // If it was an EmailAuthStrategy, we save credentials for future biometric use
+                if (strategy is EmailAuthStrategy) {
+                    authRepository.saveCredentials(strategy.email, strategy.password)
+                    _savedEmail.value = strategy.email
                 }
+                onSuccess()
+            } else {
+                _errorMessage.value = error ?: "Error al iniciar sesión"
             }
+        }
     }
 
     fun register(

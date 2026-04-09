@@ -12,6 +12,8 @@ kotlin = "2.3.20"
 composeBom = "2026.03.00"
 navigationCompose = "2.9.7"
 firebaseFirestore = "26.1.2"
+biometric = "1.1.0"
+securityCrypto = "1.1.0"
 
 [libraries]
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
@@ -32,6 +34,8 @@ androidx-compose-material3 = { group = "androidx.compose.material3", name = "mat
 androidx-compose-material-icons-extended = { group = "androidx.compose.material", name = "material-icons-extended" }
 firebase-firestore = { group = "com.google.firebase", name = "firebase-firestore" }
 firebase-firestore-ktx = { group = "com.google.firebase", name = "firebase-firestore" }
+androidx-biometric = { group = "androidx.biometric", name = "biometric", version.ref = "biometric" }
+androidx-security-crypto = { group = "androidx.security", name = "security-crypto", version.ref = "securityCrypto" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }

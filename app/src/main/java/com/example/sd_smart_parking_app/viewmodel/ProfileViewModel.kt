@@ -32,4 +32,13 @@ class ProfileViewModel : ViewModel() {
             _isLoading.value = false
         }
     }
+
+    // Cerrar sesión
+    fun logout(onLogoutSuccess: () -> Unit) {
+        repository.logout()
+        // Limpiamos la información que teníamos en memoria
+        _userProfile.value = UserProfile()
+        // Avisamos a la vista que ya puede navegar afuera
+        onLogoutSuccess()
+    }
 }
