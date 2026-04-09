@@ -8,9 +8,12 @@ import com.google.firebase.Firebase
 import com.google.firebase.firestore.firestore
 import com.google.firebase.firestore.DocumentSnapshot
 import com.google.firebase.firestore.QuerySnapshot
+import com.google.firebase.auth.FirebaseAuth
+
 
 class ParkingRepository {
     private val db = Firebase.firestore
+    private val auth = FirebaseAuth.getInstance()
 
     // Obtener configuración del parqueadero con actualizaciones en vivo
     fun getParkingConfig(onSuccess: (ParkingConfig) -> Unit) {
@@ -52,8 +55,14 @@ class ParkingRepository {
             }
     }
 
+
+    // Obtener usuario actual
+    fun getCurrentUserUid(): String? = auth.currentUser?.uid
+
+
     // Obtener perfil del usuario actual
-    fun getUserProfile(uid: String, onSuccess: (UserProfile) -> Unit) {
+    fun getUserProfile(onSuccess: (UserProfile) -> Unit) {
+        val uid = getCurrentUserUid() ?: return
         db.collection("users").document(uid)
             .get()
             .addOnSuccessListener { doc ->

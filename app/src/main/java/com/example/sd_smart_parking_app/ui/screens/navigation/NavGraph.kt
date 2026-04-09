@@ -47,7 +47,7 @@ fun SmartParkingNavGraph(
         ) {
             composable(NavRoutes.LOGIN) {
                 LoginScreen(
-                    onLoginClick = { email, password ->
+                    onLoginSuccess = { _, _ ->
                         navController.navigate(NavRoutes.HOME) {
                             popUpTo(NavRoutes.AUTH_GRAPH) { inclusive = true }
                         }
@@ -59,7 +59,7 @@ fun SmartParkingNavGraph(
             }
             composable(NavRoutes.REGISTER) {
                 RegisterScreen(
-                    onRegisterClick = { name, email, phone, vehicleModel, vehiclePlate, role, password ->
+                    onRegisterSuccess = { name, email, phone, vehicleModel, vehiclePlate, role, _ ->
                         val uid = FirebaseAuth.getInstance().currentUser?.uid
                         if (uid != null) {
                             val profile = UserProfile(

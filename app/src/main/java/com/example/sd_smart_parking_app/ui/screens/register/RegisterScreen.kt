@@ -22,6 +22,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.sd_smart_parking_app.ui.components.PrimaryButton
 import com.example.sd_smart_parking_app.ui.theme.BackgroundWhite
 import com.example.sd_smart_parking_app.ui.theme.BorderGray
@@ -33,15 +34,15 @@ import com.example.sd_smart_parking_app.ui.theme.SmartParkingTheme
 import com.example.sd_smart_parking_app.ui.theme.Spacing
 import com.example.sd_smart_parking_app.ui.theme.Typography
 import com.example.sd_smart_parking_app.ui.theme.ErrorRed
-import com.google.firebase.auth.FirebaseAuth
-import com.google.firebase.auth.UserProfileChangeRequest
+import com.example.sd_smart_parking_app.viewmodel.AuthViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun RegisterScreen(
-    onRegisterClick: (String, String, String, String, String, String, String) -> Unit,
+    onRegisterSuccess: (String, String, String, String, String, String, String) -> Unit,
     onLoginClick: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    viewModel: AuthViewModel = viewModel()
 ) {
     var name by remember { mutableStateOf("") }
     var email by remember { mutableStateOf("") }
@@ -52,12 +53,11 @@ fun RegisterScreen(
     var password by remember { mutableStateOf("") }
     var confirmPassword by remember { mutableStateOf("") }
     
-    var isLoading by remember { mutableStateOf(false) }
-    var errorMessage by remember { mutableStateOf<String?>(null) }
+    val isLoading by viewModel.isLoading.collectAsState()
+    val errorMessage by viewModel.errorMessage.collectAsState()
+    
     var expanded by remember { mutableStateOf(false) }
     val roles = listOf("Driver", "Manager")
-
-    val auth = remember { FirebaseAuth.getInstance() }
 
     // Validation logic
     val isFormValid = name.isNotBlank() && 
@@ -108,7 +108,10 @@ fun RegisterScreen(
             ) {
                 OutlinedTextField(
                     value = name,
-                    onValueChange = { name = it },
+                    onValueChange = { 
+                        name = it
+                        if (errorMessage != null) viewModel.clearError()
+                    },
                     label = { Text("Full Name") },
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(CornerRadius.md),
@@ -124,7 +127,10 @@ fun RegisterScreen(
 
                 OutlinedTextField(
                     value = email,
-                    onValueChange = { email = it },
+                    onValueChange = { 
+                        email = it
+                        if (errorMessage != null) viewModel.clearError()
+                    },
                     label = { Text("Email") },
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(CornerRadius.md),
@@ -141,7 +147,10 @@ fun RegisterScreen(
 
                 OutlinedTextField(
                     value = phone,
-                    onValueChange = { phone = it },
+                    onValueChange = { 
+                        phone = it
+                        if (errorMessage != null) viewModel.clearError()
+                    },
                     label = { Text("Phone Number") },
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(CornerRadius.md),
@@ -158,10 +167,13 @@ fun RegisterScreen(
 
                 OutlinedTextField(
                     value = vehicleModel,
-                    onValueChange = { vehicleModel = it },
+                    onValueChange = { 
+                        vehicleModel = it
+                        if (errorMessage != null) viewModel.clearError()
+                    },
                     label = { Text("Vehicle Model") },
                     modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(RoundedCornerShape(CornerRadius.md).topStart), // Just being safe with shapes
+                    shape = RoundedCornerShape(CornerRadius.md),
                     colors = OutlinedTextFieldDefaults.colors(
                         focusedBorderColor = DarkText,
                         unfocusedBorderColor = BorderGray,
@@ -174,7 +186,10 @@ fun RegisterScreen(
 
                 OutlinedTextField(
                     value = vehiclePlate,
-                    onValueChange = { vehiclePlate = it },
+                    onValueChange = { 
+                        vehiclePlate = it
+                        if (errorMessage != null) viewModel.clearError()
+                    },
                     label = { Text("Vehicle Plate") },
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(CornerRadius.md),
@@ -221,6 +236,7 @@ fun RegisterScreen(
                                 onClick = {
                                     role = selectionOption
                                     expanded = false
+                                    if (errorMessage != null) viewModel.clearError()
                                 }
                             )
                         }
@@ -229,7 +245,10 @@ fun RegisterScreen(
 
                 OutlinedTextField(
                     value = password,
-                    onValueChange = { password = it },
+                    onValueChange = { 
+                        password = it
+                        if (errorMessage != null) viewModel.clearError()
+                    },
                     label = { Text("Password") },
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(CornerRadius.md),
@@ -247,7 +266,10 @@ fun RegisterScreen(
 
                 OutlinedTextField(
                     value = confirmPassword,
-                    onValueChange = { confirmPassword = it },
+                    onValueChange = { 
+                        confirmPassword = it
+                        if (errorMessage != null) viewModel.clearError()
+                    },
                     label = { Text("Confirm Password") },
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(CornerRadius.md),
@@ -277,33 +299,12 @@ fun RegisterScreen(
 
             // Register Button
             PrimaryButton(
-                text = "Register",
+                text = if (isLoading) "Registering..." else "Register",
                 onClick = {
                     if (isFormValid && !isLoading) {
-                        isLoading = true
-                        errorMessage = null
-                        auth.createUserWithEmailAndPassword(email, password)
-                            .addOnCompleteListener { task ->
-                                if (task.isSuccessful) {
-                                    val user = auth.currentUser
-                                    val profileUpdates = UserProfileChangeRequest.Builder()
-                                        .setDisplayName(name)
-                                        .build()
-
-                                    user?.updateProfile(profileUpdates)
-                                        ?.addOnCompleteListener { profileTask ->
-                                            isLoading = false
-                                            if (profileTask.isSuccessful) {
-                                                onRegisterClick(name, email, phone, vehicleModel, vehiclePlate, role, password)
-                                            } else {
-                                                errorMessage = profileTask.exception?.localizedMessage ?: "Error updating profile"
-                                            }
-                                        }
-                                } else {
-                                    isLoading = false
-                                    errorMessage = task.exception?.localizedMessage ?: "Error registering user"
-                                }
-                            }
+                        viewModel.register(name, email, password) {
+                            onRegisterSuccess(name, email, phone, vehicleModel, vehiclePlate, role, password)
+                        }
                     }
                 },
                 enabled = isFormValid && !isLoading
@@ -336,6 +337,6 @@ fun RegisterScreen(
 @Composable
 fun RegisterScreenPreview() {
     SmartParkingTheme {
-        RegisterScreen(onRegisterClick = { _, _, _, _, _, _, _ -> }, onLoginClick = {})
+        RegisterScreen(onRegisterSuccess = { _, _, _, _, _, _, _ -> }, onLoginClick = {})
     }
 }

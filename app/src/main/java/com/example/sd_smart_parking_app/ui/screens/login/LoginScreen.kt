@@ -19,6 +19,7 @@ import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -29,6 +30,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.sd_smart_parking_app.ui.components.PrimaryButton
 import com.example.sd_smart_parking_app.ui.theme.BackgroundWhite
 import com.example.sd_smart_parking_app.ui.theme.BorderGray
@@ -40,21 +42,20 @@ import com.example.sd_smart_parking_app.ui.theme.SmartParkingTheme
 import com.example.sd_smart_parking_app.ui.theme.Spacing
 import com.example.sd_smart_parking_app.ui.theme.Typography
 import com.example.sd_smart_parking_app.ui.theme.ErrorRed
-import com.google.firebase.auth.FirebaseAuth
+import com.example.sd_smart_parking_app.viewmodel.AuthViewModel
 
 @Composable
 fun LoginScreen(
-    onLoginClick: (String, String) -> Unit,
+    onLoginSuccess: (String, String) -> Unit,
     onRegisterClick: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    viewModel: AuthViewModel = viewModel()
 ) {
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
     
-    var isLoading by remember { mutableStateOf(false) }
-    var errorMessage by remember { mutableStateOf<String?>(null) }
-
-    val auth = remember { FirebaseAuth.getInstance() }
+    val isLoading by viewModel.isLoading.collectAsState()
+    val errorMessage by viewModel.errorMessage.collectAsState()
 
     val isFormValid = email.isNotBlank() && password.isNotBlank()
 
@@ -95,7 +96,10 @@ fun LoginScreen(
             ) {
                 OutlinedTextField(
                     value = email,
-                    onValueChange = { email = it },
+                    onValueChange = { 
+                        email = it
+                        if (errorMessage != null) viewModel.clearError()
+                    },
                     label = { Text("Email") },
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(CornerRadius.md),
@@ -112,7 +116,10 @@ fun LoginScreen(
 
                 OutlinedTextField(
                     value = password,
-                    onValueChange = { password = it },
+                    onValueChange = { 
+                        password = it
+                        if (errorMessage != null) viewModel.clearError()
+                    },
                     label = { Text("Password") },
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(CornerRadius.md),
@@ -145,17 +152,9 @@ fun LoginScreen(
                 text = if (isLoading) "Signing in..." else "Log In",
                 onClick = { 
                     if (isFormValid && !isLoading) {
-                        isLoading = true
-                        errorMessage = null
-                        auth.signInWithEmailAndPassword(email, password)
-                            .addOnCompleteListener { task ->
-                                isLoading = false
-                                if (task.isSuccessful) {
-                                    onLoginClick(email, password)
-                                } else {
-                                    errorMessage = task.exception?.localizedMessage ?: "Login failed"
-                                }
-                            }
+                        viewModel.login(email, password) {
+                            onLoginSuccess(email, password)
+                        }
                     }
                 },
                 enabled = isFormValid && !isLoading
@@ -196,7 +195,7 @@ fun LoginScreen(
 fun LoginScreenPreview() {
     SmartParkingTheme {
         LoginScreen(
-            onLoginClick = { _, _ -> },
+            onLoginSuccess = { _, _ -> },
             onRegisterClick = {}
         )
     }
