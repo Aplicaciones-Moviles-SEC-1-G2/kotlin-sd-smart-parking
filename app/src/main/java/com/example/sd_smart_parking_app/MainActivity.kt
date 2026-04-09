@@ -1,7 +1,6 @@
 package com.example.sd_smart_parking_app
 
 import android.os.Bundle
-import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
@@ -22,6 +21,7 @@ import androidx.compose.material.icons.filled.Navigation
 import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.Person
 
+import androidx.fragment.app.FragmentActivity
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.example.sd_smart_parking_app.ui.components.BottomNavItem
@@ -30,7 +30,7 @@ import com.example.sd_smart_parking_app.ui.screens.navigation.NavRoutes
 import com.example.sd_smart_parking_app.ui.screens.navigation.SmartParkingNavGraph
 import com.example.sd_smart_parking_app.ui.theme.SmartParkingTheme
 
-class MainActivity : ComponentActivity() {
+class MainActivity : FragmentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContent {

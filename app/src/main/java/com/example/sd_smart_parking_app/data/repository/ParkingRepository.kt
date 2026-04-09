@@ -1,9 +1,9 @@
 package com.example.sd_smart_parking_app.data.repository
 
+
 import com.example.sd_smart_parking_app.data.model.ParkingConfig
 import com.example.sd_smart_parking_app.data.model.ParkingSpot
 import com.example.sd_smart_parking_app.data.model.UserProfile
-import com.example.sd_smart_parking_app.data.model.UserCar
 import com.google.firebase.Firebase
 import com.google.firebase.firestore.firestore
 import com.google.firebase.firestore.DocumentSnapshot
@@ -71,5 +71,11 @@ class ParkingRepository {
                     onSuccess(profile)
                 }
             }
+    }
+
+
+    // Cerrar sesión del usuario actual
+    fun logout() {
+        auth.signOut()
     }
 }

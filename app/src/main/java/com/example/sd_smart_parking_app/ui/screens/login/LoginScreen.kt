@@ -10,15 +10,21 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Fingerprint
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -26,10 +32,14 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.unit.dp
+import androidx.fragment.app.FragmentActivity
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.sd_smart_parking_app.ui.components.PrimaryButton
 import com.example.sd_smart_parking_app.ui.theme.BackgroundWhite
@@ -51,13 +61,23 @@ fun LoginScreen(
     modifier: Modifier = Modifier,
     viewModel: AuthViewModel = viewModel()
 ) {
+    val savedEmail by viewModel.savedEmail.collectAsState()
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
     
+    // Al cargar la pantalla, si existe un email guardado, lo autocompletamos
+    LaunchedEffect(savedEmail) {
+        if (savedEmail != null) {
+            email = savedEmail!!
+        }
+    }
+
     val isLoading by viewModel.isLoading.collectAsState()
     val errorMessage by viewModel.errorMessage.collectAsState()
+    val context = LocalContext.current
 
     val isFormValid = email.isNotBlank() && password.isNotBlank()
+    val hasBiometricsEnabled = savedEmail != null
 
     Scaffold(
         modifier = modifier.fillMaxSize(),
@@ -152,13 +172,52 @@ fun LoginScreen(
                 text = if (isLoading) "Signing in..." else "Log In",
                 onClick = { 
                     if (isFormValid && !isLoading) {
-                        viewModel.login(email, password) {
-                            onLoginSuccess(email, password)
+                        viewModel.loginWithEmail(email, password) {
+                            onLoginSuccess(email, "password_hidden")
                         }
                     }
                 },
                 enabled = isFormValid && !isLoading
             )
+
+            Spacer(modifier = Modifier.height(Spacing.md))
+
+            // Biometric Section
+            if (hasBiometricsEnabled) {
+                IconButton(
+                    onClick = {
+                        val activity = context as? FragmentActivity
+                        if (activity != null) {
+                            viewModel.loginWithBiometrics(activity) {
+                                onLoginSuccess(savedEmail ?: "biometric_user", "biometric_token")
+                            }
+                        }
+                    },
+                    enabled = !isLoading,
+                    modifier = Modifier.size(64.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Fingerprint,
+                        contentDescription = "Login with Fingerprint",
+                        tint = NavigationBlue,
+                        modifier = Modifier.size(48.dp)
+                    )
+                }
+            } else {
+                Text(
+                    text = "Inicia sesión manual para activar biometría",
+                    style = Typography.bodySmall,
+                    color = MediumGray,
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier.padding(horizontal = Spacing.md)
+                )
+                Icon(
+                    imageVector = Icons.Default.Fingerprint,
+                    contentDescription = null,
+                    tint = MediumGray.copy(alpha = 0.5f),
+                    modifier = Modifier.size(48.dp).padding(top = 8.dp)
+                )
+            }
 
             Spacer(modifier = Modifier.height(Spacing.md))
 
