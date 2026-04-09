@@ -51,15 +51,9 @@ fun NavigationScreen(
     val navigationState by viewModel.navigationState.collectAsState()
 
     // Solicitar ubicación actualizada
+    // El ViewModel ya se encarga de obtener las actualizaciones de ubicación
     LaunchedEffect(Unit) {
-        try {
-            val locationManager = com.example.sd_smart_parking_app.data.LocationManager(context)
-            locationManager.getLocationUpdates().collectLatest { location ->
-                viewModel.updateLocationAndBearing(location)
-            }
-        } catch (e: Exception) {
-            e.printStackTrace()
-        }
+        // No es necesario hacer nada aquí, el ViewModel maneja las ubicaciones
     }
 
     Scaffold(

@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.sd_smart_parking_app.data.WeatherData
 import com.example.sd_smart_parking_app.data.WeatherService
+import com.example.sd_smart_parking_app.data.repository.WeatherRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
@@ -19,14 +20,14 @@ data class WeatherUIState(
 
 class WeatherViewModel : ViewModel() {
 
-    private val weatherService = WeatherService()
+    // Repository
+    private val weatherRepository = WeatherRepository(WeatherService())
 
     private val _weatherState = MutableStateFlow(WeatherUIState())
     val weatherState: StateFlow<WeatherUIState> = _weatherState
 
     init {
         fetchWeather()
-        // Actualizar clima cada 30 minutos
         startWeatherUpdates()
     }
 
@@ -34,10 +35,10 @@ class WeatherViewModel : ViewModel() {
         viewModelScope.launch {
             _weatherState.value = _weatherState.value.copy(isLoading = true)
             try {
-                val weather = weatherService.getWeatherData()
+                val weather = weatherRepository.getWeatherData()
                 if (weather != null) {
-                    val recommendation = weatherService.getWeatherRecommendation(weather)
-                    val hasRain = weatherService.hasRainRisk(weather)
+                    val recommendation = weatherRepository.getWeatherRecommendation(weather)
+                    val hasRain = weatherRepository.hasRainRisk(weather)
 
                     _weatherState.value = WeatherUIState(
                         weatherData = weather,
