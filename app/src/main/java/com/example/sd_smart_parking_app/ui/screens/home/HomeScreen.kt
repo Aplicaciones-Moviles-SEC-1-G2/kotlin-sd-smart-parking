@@ -15,6 +15,7 @@ import com.example.sd_smart_parking_app.data.model.ParkingConfig
 import com.example.sd_smart_parking_app.data.model.ParkingSpot
 import com.example.sd_smart_parking_app.data.repository.ParkingRepository
 import com.example.sd_smart_parking_app.ui.components.ParkingCard
+import com.example.sd_smart_parking_app.ui.components.OccupancyPredictorCard
 import com.example.sd_smart_parking_app.ui.theme.BackgroundWhite
 import com.example.sd_smart_parking_app.ui.theme.SmartParkingTheme
 import com.example.sd_smart_parking_app.ui.theme.Spacing
@@ -26,6 +27,7 @@ import com.example.sd_smart_parking_app.ui.components.WeatherCard
 import androidx.compose.runtime.collectAsState
 import com.example.sd_smart_parking_app.viewmodel.FloorRecommendationViewModel
 import com.example.sd_smart_parking_app.ui.components.FloorRecommendationCard
+import com.example.sd_smart_parking_app.viewmodel.OccupancyPredictorViewModel
 import com.example.sd_smart_parking_app.data.model.Floor
 import kotlinx.coroutines.delay
 import com.example.sd_smart_parking_app.viewmodel.SharedDetailsViewModel
@@ -44,6 +46,8 @@ fun HomeScreen(
     val recommendationState by floorRecommendationViewModel.recommendationState.collectAsState()
     val weatherViewModel = remember { WeatherViewModel() }
     val weatherState by weatherViewModel.weatherState.collectAsState()
+    val occupancyPredictorViewModel = remember { OccupancyPredictorViewModel() }
+    val occupancyState by occupancyPredictorViewModel.uiState.collectAsState()
     var lastUpdate by remember { mutableStateOf("") }
 
     // Actualizar recomendación cada vez que cambien los parkingSpots
@@ -69,6 +73,15 @@ fun HomeScreen(
                 )
             }
             floorRecommendationViewModel.updateRecommendation(floors)
+
+            // Guardar datos de ocupación actual para entrenar el modelo
+            val occupancyPercentage = 100f - ((detailsState.parkingSpots.count { it.isAvailable } * 100f) / (detailsState.parkingConfig.numberOfFloors * detailsState.parkingConfig.spotsPerFloor))
+            occupancyPredictorViewModel.saveCurrentOccupancyData(
+                occupancyPercentage = occupancyPercentage,
+                availableSpots = detailsState.parkingSpots.count { it.isAvailable },
+                totalSpots = detailsState.parkingConfig.numberOfFloors * detailsState.parkingConfig.spotsPerFloor
+            )
+
             lastUpdate = SimpleDateFormat("h:mm:ss a", Locale.getDefault()).format(Date())
         }
     }
@@ -97,6 +110,13 @@ fun HomeScreen(
                 availabilityPercentage = availabilityPercentage,
                 modifier = Modifier.padding(bottom = Spacing.lg),
                 onNavigateClick = onNavigationClick
+            )
+
+            // Occupancy Predictor Card - NUEVA FEATURE
+            OccupancyPredictorCard(
+                prediction = occupancyState.currentPrediction,
+                isLoading = occupancyState.isLoading,
+                modifier = Modifier.padding(horizontal = Spacing.lg, vertical = Spacing.md)
             )
 
             // Floor Recommendation Card
