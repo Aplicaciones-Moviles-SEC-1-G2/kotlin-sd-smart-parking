@@ -75,7 +75,7 @@ fun WeatherCard(
                         onClick = onRefresh,
                         modifier = Modifier.padding(top = Spacing.sm)
                     ) {
-                        Text("Reintentar")
+                        Text("Try Again")
                     }
                 }
             }
@@ -84,14 +84,13 @@ fun WeatherCard(
                     modifier = Modifier.fillMaxWidth(),
                     verticalArrangement = Arrangement.spacedBy(Spacing.md)
                 ) {
-                    // Header con título y botón refresh
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Text(
-                            text = "🌤️ Clima en Bogotá",
+                            text = "Weather in Bogotá",
                             style = Typography.headlineSmall
                         )
                         IconButton(onClick = onRefresh) {
@@ -99,7 +98,6 @@ fun WeatherCard(
                         }
                     }
 
-                    // Temperatura y descripción
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceBetween,
@@ -116,13 +114,12 @@ fun WeatherCard(
                                 style = Typography.bodyMedium
                             )
                             Text(
-                                text = "Sensación: ${weatherData.feelsLike.toInt()}°C",
+                                text = "Sensation: ${weatherData.feelsLike.toInt()}°C",
                                 style = Typography.bodySmall
                             )
                         }
                     }
 
-                    // Detalles adicionales
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -134,23 +131,22 @@ fun WeatherCard(
                         horizontalArrangement = Arrangement.SpaceEvenly
                     ) {
                         WeatherDetailItem(
-                            label = "Humedad",
+                            label = "Humidity",
                             value = "${weatherData.humidity}%",
                             icon = "💧"
                         )
                         WeatherDetailItem(
-                            label = "Viento",
+                            label = "Wind",
                             value = "${weatherData.windSpeed.toInt()} m/s",
                             icon = "💨"
                         )
                         WeatherDetailItem(
-                            label = "Nubes",
+                            label = "Clouds",
                             value = "${weatherData.cloudiness}%",
                             icon = "☁️"
                         )
                     }
 
-                    // Recomendación
                     Box(
                         modifier = Modifier
                             .fillMaxWidth()

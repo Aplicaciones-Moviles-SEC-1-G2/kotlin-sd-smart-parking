@@ -75,7 +75,7 @@ fun FloorRecommendationCard(
                 ) {
                     // Título
                     Text(
-                        text = "🎯 Recomendación Inteligente",
+                        text = "Smart Recommendation",
                         style = Typography.headlineSmall
                     )
 
@@ -116,15 +116,15 @@ fun FloorRecommendationCard(
                                     modifier = Modifier.weight(1f)
                                 ) {
                                     Text(
-                                        text = "Piso ${recommendation.floorNumber}",
+                                        text = "Floor ${recommendation.floorNumber}",
                                         style = Typography.headlineMedium.copy(fontWeight = FontWeight.Bold)
                                     )
                                     Text(
-                                        text = "${recommendation.availableSpots} espacios disponibles",
+                                        text = "${recommendation.availableSpots} available spots",
                                         style = Typography.bodyMedium
                                     )
                                     Text(
-                                        text = "Disponibilidad: ${recommendation.availabilityPercentage}%",
+                                        text = "Availability: ${recommendation.availabilityPercentage}%",
                                         style = Typography.bodySmall,
                                         modifier = Modifier.padding(top = Spacing.xs)
                                     )
@@ -143,7 +143,7 @@ fun FloorRecommendationCard(
                                 .padding(Spacing.md)
                         ) {
                             Text(
-                                text = "💡 ${recommendation.reason}",
+                                text = "${recommendation.reason}",
                                 style = Typography.bodySmall,
                                 fontWeight = FontWeight.SemiBold
                             )
@@ -169,7 +169,7 @@ fun FloorRecommendationCard(
             }
             else -> {
                 Text(
-                    text = "Sin datos disponibles",
+                    text = "No Available Data",
                     style = Typography.bodyMedium,
                     modifier = Modifier.padding(Spacing.md)
                 )
@@ -178,9 +178,6 @@ fun FloorRecommendationCard(
     }
 }
 
-/**
- * Retorna el color basado en el emoji del piso
- */
 private fun getFloorColor(emoji: String): Color {
     return when (emoji) {
         "🟢" -> Color(0xFFC8E6C9)  // Verde

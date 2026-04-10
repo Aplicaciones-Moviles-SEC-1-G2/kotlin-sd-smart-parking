@@ -47,7 +47,7 @@ class LocationManager(private val context: Context) {
         try {
             val locationRequest = com.google.android.gms.location.LocationRequest.Builder(
                 Priority.PRIORITY_HIGH_ACCURACY,
-                1000  // Actualizar cada 1 segundo
+                1000
             ).build()
 
             val locationCallback = object : com.google.android.gms.location.LocationCallback() {

@@ -104,7 +104,7 @@ fun HomeScreen(
             // Tarjeta principal de información del parqueadero con datos reales
             ParkingCard(
                 title = detailsState.parkingConfig.parkingName.ifEmpty { "Loading..." },
-                subtitle = "Universidad de los Andes",
+                subtitle = "Andes University",
                 availableSpots = availableSpots,
                 totalSpots = totalSpots,
                 availabilityPercentage = availabilityPercentage,

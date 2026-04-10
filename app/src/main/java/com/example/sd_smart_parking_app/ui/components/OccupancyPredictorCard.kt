@@ -61,9 +61,9 @@ fun OccupancyPredictorCard(
     }
 
     val statusText = if (prediction.isBusy) {
-        "🔴 Parqueadero Ocupado"
+        "🔴 Occuped Parking"
     } else {
-        "🟢 Espacio Disponible"
+        "🟢 Available Spots"
     }
 
     Box(
@@ -94,7 +94,7 @@ fun OccupancyPredictorCard(
                         modifier = Modifier.size(24.dp)
                     )
                     Text(
-                        text = "Predictor de Ocupación",
+                        text = "Occupancy Predictor",
                         style = Typography.titleMedium,
                         color = statusColor,
                         fontWeight = FontWeight.Bold
@@ -174,7 +174,7 @@ fun OccupancyPredictorCard(
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
                     Text(
-                        text = "Hora actual:",
+                        text = "Current Time:",
                         style = Typography.bodySmall,
                         color = Color.Gray
                     )
@@ -191,7 +191,7 @@ fun OccupancyPredictorCard(
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
                     Text(
-                        text = "Confianza:",
+                        text = "Confidence:",
                         style = Typography.bodySmall,
                         color = Color.Gray
                     )
@@ -206,7 +206,7 @@ fun OccupancyPredictorCard(
                 if (!prediction.isBusy) {
                     Spacer(modifier = Modifier.height(Spacing.xs))
                     Text(
-                        text = "💡 Hora recomendada para estacionar: ${prediction.recommendedTime}",
+                        text = "Recommended time to park: ${prediction.recommendedTime}",
                         style = Typography.bodySmall,
                         color = statusColor,
                         fontWeight = FontWeight.SemiBold
@@ -214,7 +214,7 @@ fun OccupancyPredictorCard(
                 } else {
                     Spacer(modifier = Modifier.height(Spacing.xs))
                     Text(
-                        text = "⏰ Considera volver en ${prediction.recommendedTime}",
+                        text = "Consider coming back at: ${prediction.recommendedTime}",
                         style = Typography.bodySmall,
                         color = statusColor,
                         fontWeight = FontWeight.SemiBold
@@ -244,7 +244,7 @@ private fun LoadingCard(modifier: Modifier = Modifier) {
                 modifier = Modifier.size(40.dp)
             )
             Text(
-                text = "Cargando predicción...",
+                text = "Loading Prediction...",
                 style = Typography.bodySmall,
                 color = Color.Gray
             )
@@ -263,7 +263,7 @@ private fun EmptyCard(modifier: Modifier = Modifier) {
         contentAlignment = Alignment.Center
     ) {
         Text(
-            text = "No hay datos de predicción disponibles",
+            text = "No Data Prediction Available",
             style = Typography.bodySmall,
             color = Color.Gray
         )

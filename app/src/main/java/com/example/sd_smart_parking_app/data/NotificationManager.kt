@@ -14,52 +14,39 @@ class NotificationManagerHelper(private val context: Context) {
     init {
         createNotificationChannel()
     }
-
-    /**
-     * Envía una notificación cuando hay espacios disponibles
-     */
     fun sendAvailabilityNotification(
         floorNumber: Int,
         availableSpots: Int,
         occupancyPercentage: Int
     ) {
-        val title = "¡Espacios disponibles!"
+        val title = "¡Available spots!"
         val message = when {
             occupancyPercentage <= 20 -> {
-                "Piso $floorNumber: $availableSpots espacios libres (Alta disponibilidad) 🎉"
+                "Floor $floorNumber: $availableSpots available spots (High Availability)"
             }
             occupancyPercentage <= 50 -> {
-                "Piso $floorNumber: $availableSpots espacios libres (Disponibilidad media) 👍"
+                "Floor $floorNumber: $availableSpots available spots (Medium Availability)"
             }
             else -> {
-                "Piso $floorNumber: $availableSpots espacios libres"
+                "Floor $floorNumber: $availableSpots available spots"
             }
         }
 
         sendNotification(title, message)
     }
 
-    /**
-     * Envía una notificación cuando la ocupación es baja
-     */
     fun sendLowOccupancyNotification(averageOccupancy: Int) {
-        val title = "Baja ocupación en el parqueadero"
-        val message = "Ocupación promedio: $averageOccupancy%. Es un buen momento para estacionar 🚗"
+        val title = "Low Parking Occupancy"
+        val message = "Average Occupancy: $averageOccupancy%. Is time to park"
 
         sendNotification(title, message)
     }
 
-    /**
-     * Envía una notificación de recordatorio
-     */
     fun sendReminderNotification(message: String) {
-        val title = "Recordatorio"
+        val title = "Reminder"
         sendNotification(title, message)
     }
 
-    /**
-     * Envía una notificación genérica
-     */
     private fun sendNotification(title: String, message: String) {
         createNotificationChannel()
 
@@ -76,9 +63,6 @@ class NotificationManagerHelper(private val context: Context) {
         notificationManager.notify(notificationId, notificationBuilder.build())
     }
 
-    /**
-     * Crea el canal de notificaciones
-     */
     private fun createNotificationChannel() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             val channel = NotificationChannel(
@@ -86,7 +70,7 @@ class NotificationManagerHelper(private val context: Context) {
                 "Parking Notifications",
                 NotificationManager.IMPORTANCE_HIGH
             )
-            channel.description = "Notificaciones de disponibilidad de espacios en el parqueadero"
+            channel.description = "Parking Spots Availability Notifications"
             channel.enableVibration(true)
 
             notificationManager.createNotificationChannel(channel)

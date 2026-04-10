@@ -27,8 +27,6 @@ class ParkingRepository private constructor() {
             }
         }
     }
-
-    // Obtener configuración del parqueadero con actualizaciones en vivo
     fun getParkingConfig(onSuccess: (ParkingConfig) -> Unit) {
         db.collection("config").document("parking")
             .addSnapshotListener { snapshot, error ->
@@ -41,8 +39,6 @@ class ParkingRepository private constructor() {
                 }
             }
     }
-
-    // Obtener estado de los cupos con actualizaciones en vivo
     fun getParkingSpots(onSuccess: (List<ParkingSpot>) -> Unit) {
         db.collection("parkingSpots")
             .addSnapshotListener { snapshot: QuerySnapshot?, error ->
@@ -58,8 +54,6 @@ class ParkingRepository private constructor() {
                 onSuccess(spots)
             }
     }
-
-    // Guardar perfil de usuario
     fun saveUserProfile(uid: String, profile: UserProfile, onComplete: (Boolean) -> Unit) {
         db.collection("users").document(uid)
             .set(profile)
@@ -67,13 +61,7 @@ class ParkingRepository private constructor() {
                 onComplete(task.isSuccessful)
             }
     }
-
-
-    // Obtener usuario actual
     fun getCurrentUserUid(): String? = auth.currentUser?.uid
-
-
-    // Obtener perfil del usuario actual
     fun getUserProfile(onSuccess: (UserProfile) -> Unit) {
         val uid = getCurrentUserUid() ?: return
         db.collection("users").document(uid)
@@ -85,9 +73,6 @@ class ParkingRepository private constructor() {
                 }
             }
     }
-
-
-    // Cerrar sesión del usuario actual
     fun logout() {
         auth.signOut()
     }

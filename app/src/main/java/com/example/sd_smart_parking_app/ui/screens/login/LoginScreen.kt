@@ -17,6 +17,8 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Fingerprint
+import androidx.compose.material3.Checkbox
+import androidx.compose.material3.CheckboxDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.OutlinedTextField
@@ -53,6 +55,7 @@ import com.example.sd_smart_parking_app.ui.theme.Spacing
 import com.example.sd_smart_parking_app.ui.theme.Typography
 import com.example.sd_smart_parking_app.ui.theme.ErrorRed
 import com.example.sd_smart_parking_app.viewmodel.AuthViewModel
+import kotlinx.coroutines.delay
 
 @Composable
 fun LoginScreen(
@@ -64,11 +67,19 @@ fun LoginScreen(
     val savedEmail by viewModel.savedEmail.collectAsState()
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
-    
-    // Al cargar la pantalla, si existe un email guardado, lo autocompletamos
-    LaunchedEffect(savedEmail) {
-        if (savedEmail != null) {
+    var rememberMe by remember { mutableStateOf(false) }
+
+    // Al cargar la pantalla, verificar auto-login
+    LaunchedEffect(Unit) {
+        // Verificar si debe hacer auto-login
+        if (viewModel.checkAndAutoLogin()) {
+            delay(500)
+            val preferences = viewModel.getRememberMePreferences()
+            onLoginSuccess(preferences.savedEmail ?: "auto_login_user", "remembered_session")
+        } else if (savedEmail != null) {
+            // Si no hay auto-login, pero hay email guardado, lo autocompletamos
             email = savedEmail!!
+            rememberMe = false
         }
     }
 
@@ -101,7 +112,7 @@ fun LoginScreen(
                 fontWeight = FontWeight.Bold
             )
             Text(
-                text = "Universidad de los Andes",
+                text = "Andes University",
                 style = Typography.bodyMedium,
                 color = MediumGray,
                 modifier = Modifier.padding(top = Spacing.xs)
@@ -116,7 +127,7 @@ fun LoginScreen(
             ) {
                 OutlinedTextField(
                     value = email,
-                    onValueChange = { 
+                    onValueChange = {
                         email = it
                         if (errorMessage != null) viewModel.clearError()
                     },
@@ -136,7 +147,7 @@ fun LoginScreen(
 
                 OutlinedTextField(
                     value = password,
-                    onValueChange = { 
+                    onValueChange = {
                         password = it
                         if (errorMessage != null) viewModel.clearError()
                     },
@@ -156,6 +167,30 @@ fun LoginScreen(
                 )
             }
 
+            // Remember Me Checkbox - NUEVA FEATURE
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = Spacing.sm),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Checkbox(
+                    checked = rememberMe,
+                    onCheckedChange = { rememberMe = it },
+                    enabled = !isLoading,
+                    colors = CheckboxDefaults.colors(
+                        checkedColor = NavigationBlue,
+                        uncheckedColor = MediumGray
+                    )
+                )
+                Text(
+                    text = "Remember me on this device",
+                    style = Typography.bodySmall,
+                    color = DarkText,
+                    modifier = Modifier.padding(start = Spacing.sm)
+                )
+            }
+
             if (errorMessage != null) {
                 Text(
                     text = errorMessage!!,
@@ -170,10 +205,15 @@ fun LoginScreen(
             // Login Button
             PrimaryButton(
                 text = if (isLoading) "Signing in..." else "Log In",
-                onClick = { 
+                onClick = {
                     if (isFormValid && !isLoading) {
+                        // Si el usuario marcó Remember Me, guardar preferencias
+                        if (rememberMe) {
+                            viewModel.setRememberMe(email, true)
+                        }
+
                         viewModel.loginWithEmail(email, password) {
-                            viewModel.logLoginMethod("email") // <--- Registro de analítica
+                            viewModel.logLoginMethod("email")
                             onLoginSuccess(email, "password_hidden")
                         }
                     }
@@ -190,7 +230,7 @@ fun LoginScreen(
                         val activity = context as? FragmentActivity
                         if (activity != null) {
                             viewModel.loginWithBiometrics(activity) {
-                                viewModel.logLoginMethod("biometric") // <--- Registro de analítica
+                                viewModel.logLoginMethod("biometric")
                                 onLoginSuccess(savedEmail ?: "biometric_user", "biometric_token")
                             }
                         }
@@ -207,7 +247,7 @@ fun LoginScreen(
                 }
             } else {
                 Text(
-                    text = "Inicia sesión manual para activar biometría",
+                    text = "Log in manually to activate biometric",
                     style = Typography.bodySmall,
                     color = MediumGray,
                     textAlign = TextAlign.Center,

@@ -16,7 +16,7 @@ class NotificationService : FirebaseMessagingService() {
 
         // Extraer datos del mensaje
         val title = remoteMessage.notification?.title ?: "SD Parking"
-        val body = remoteMessage.notification?.body ?: "Nueva notificación"
+        val body = remoteMessage.notification?.body ?: "New Notification"
 
         // Mostrar notificación
         sendNotification(title, body)
@@ -24,8 +24,6 @@ class NotificationService : FirebaseMessagingService() {
 
     override fun onNewToken(token: String) {
         super.onNewToken(token)
-        // Aquí puedes enviar el token a tu servidor
-        // para mantener un registro de dispositivos registrados
     }
 
     private fun sendNotification(title: String, messageBody: String) {
@@ -51,7 +49,7 @@ class NotificationService : FirebaseMessagingService() {
                 "Parking Notifications",
                 NotificationManager.IMPORTANCE_HIGH
             )
-            channel.description = "Notificaciones de disponibilidad de espacios"
+            channel.description = "Spots Availability Notifications"
 
             val notificationManager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
             notificationManager.createNotificationChannel(channel)
