@@ -5,31 +5,15 @@ import com.example.sd_smart_parking_app.data.LocationManager
 import kotlinx.coroutines.flow.Flow
 
 class LocationRepository(private val locationManager: LocationManager) {
-
-    /**
-     * Verifica si hay permiso de ubicación
-     */
     fun hasLocationPermission(): Boolean {
         return locationManager.hasLocationPermission()
     }
-
-    /**
-     * Obtiene la ubicación actual
-     */
     suspend fun getCurrentLocation(): Location? {
         return locationManager.getCurrentLocation()
     }
-
-    /**
-     * Obtiene el flujo de actualizaciones de ubicación en tiempo real
-     */
     fun getLocationUpdates(): Flow<Location> {
         return locationManager.getLocationUpdates()
     }
-
-    /**
-     * Calcula la distancia entre dos puntos en metros
-     */
     fun calculateDistance(
         lat1: Double,
         lon1: Double,
@@ -40,10 +24,6 @@ class LocationRepository(private val locationManager: LocationManager) {
         Location.distanceBetween(lat1, lon1, lat2, lon2, results)
         return results[0]
     }
-
-    /**
-     * Calcula el bearing (dirección) entre dos puntos
-     */
     fun calculateBearing(
         lat1: Double,
         lon1: Double,

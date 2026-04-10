@@ -6,8 +6,6 @@ import retrofit2.http.GET
 import retrofit2.http.Query
 import com.google.gson.annotations.SerializedName
 
-// ============ Data Classes ============
-
 data class WeatherResponse(
     @SerializedName("main")
     val main: MainWeatherData,
@@ -91,9 +89,6 @@ class WeatherService {
 
     private val weatherApi = retrofit.create(WeatherApi::class.java)
 
-    /**
-     * Obtiene los datos del clima actual
-     */
     suspend fun getWeatherData(): WeatherData? {
         return try {
             val response = weatherApi.getWeather(
@@ -108,10 +103,6 @@ class WeatherService {
             null
         }
     }
-
-    /**
-     * Convierte WeatherResponse a WeatherData
-     */
     private fun convertToWeatherData(response: WeatherResponse): WeatherData {
         val weather = response.weather.firstOrNull()
         val rainProbability = response.rain?.oneHour ?: 0
@@ -127,27 +118,20 @@ class WeatherService {
             rainProbability = rainProbability
         )
     }
-
-    /**
-     * Retorna recomendación basada en el clima
-     */
     fun getWeatherRecommendation(weather: WeatherData): String {
         return when {
             weather.main.contains("Rain", ignoreCase = true) ->
-                "⛈️ Lluvia detectada. Considera estacionar en el piso cubierto."
+                "⛈️ Rain Detected. Consider parking in a roofed floor."
             weather.main.contains("Cloud", ignoreCase = true) ->
-                "☁️ Cielo nublado. Buen momento para estacionar."
+                "☁️ Cloudly sky. Good time to park"
             weather.main.contains("Clear", ignoreCase = true) ->
-                "☀️ Día soleado. Tu auto estará expuesto al sol."
+                "☀️ Sunny day. Your car will be exposed to the sun."
             weather.main.contains("Snow", ignoreCase = true) ->
-                "❄️ Nieve. Maneja con cuidado, el parqueadero puede estar resbaladizo."
-            else -> "🌤️ Clima neutral. Elige el piso que prefieras."
+                "❄️ Snow. Be careful while driving, the parking could be slippery."
+            else -> "🌤️ Neutral weather. Choose the floor you prefer."
         }
     }
 
-    /**
-     * Retorna si hay riesgo de lluvia en próximas horas
-     */
     fun hasRainRisk(weather: WeatherData): Boolean {
         return weather.main.contains("Rain", ignoreCase = true) ||
                 weather.rainProbability > 30

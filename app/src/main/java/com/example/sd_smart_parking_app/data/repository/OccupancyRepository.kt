@@ -12,10 +12,6 @@ class OccupancyRepository {
 
     private val firestore = FirebaseFirestore.getInstance()
     private val occupancyCollectionPath = "parking_occupancy_history"
-
-    /**
-     * Guardar datos de ocupación en Firestore
-     */
     suspend fun saveOccupancyData(
         occupancyPercentage: Float,
         availableSpots: Int,
@@ -46,10 +42,6 @@ class OccupancyRepository {
             Result.failure(e)
         }
     }
-
-    /**
-     * Obtener estadísticas históricas de ocupación por hora
-     */
     suspend fun getHourlyOccupancyStats(): Result<List<HourlyOccupancyStats>> {
         return try {
             val snapshot = firestore.collection(occupancyCollectionPath)
@@ -65,8 +57,6 @@ class OccupancyRepository {
 
                 hourlyStats.getOrPut(hour) { mutableListOf() }.add(occupancyPercentage)
             }
-
-            // Calcular estadísticas
             val stats = hourlyStats.map { (hour, percentages) ->
                 HourlyOccupancyStats(
                     hour = hour,
@@ -84,10 +74,6 @@ class OccupancyRepository {
             Result.failure(e)
         }
     }
-
-    /**
-     * Obtener datos históricos del último mes
-     */
     suspend fun getRecentOccupancyData(days: Int = 30): Result<List<OccupancyHistory>> {
         return try {
             val calendar = Calendar.getInstance()
@@ -122,10 +108,6 @@ class OccupancyRepository {
             Result.failure(e)
         }
     }
-
-    /**
-     * Predecir ocupación para una hora específica
-     */
     suspend fun predictOccupancy(targetHour: Int): Result<OccupancyPrediction> {
         return try {
             val stats = getHourlyOccupancyStats().getOrNull()
@@ -161,18 +143,10 @@ class OccupancyRepository {
             Result.failure(e)
         }
     }
-
-    /**
-     * Obtener predicción para la hora actual
-     */
     suspend fun getCurrentHourPrediction(): Result<OccupancyPrediction> {
         val currentHour = Calendar.getInstance().get(Calendar.HOUR_OF_DAY)
         return predictOccupancy(currentHour)
     }
-
-    /**
-     * Obtener predicciones para las próximas N horas
-     */
     suspend fun getNextHoursPredictions(hours: Int = 24): Result<List<OccupancyPrediction>> {
         return try {
             val currentHour = Calendar.getInstance().get(Calendar.HOUR_OF_DAY)

@@ -112,7 +112,7 @@ fun LoginScreen(
                 fontWeight = FontWeight.Bold
             )
             Text(
-                text = "Universidad de los Andes",
+                text = "Andes University",
                 style = Typography.bodyMedium,
                 color = MediumGray,
                 modifier = Modifier.padding(top = Spacing.xs)
@@ -184,7 +184,7 @@ fun LoginScreen(
                     )
                 )
                 Text(
-                    text = "Recuérdame en este dispositivo",
+                    text = "Remember me on this device",
                     style = Typography.bodySmall,
                     color = DarkText,
                     modifier = Modifier.padding(start = Spacing.sm)
@@ -247,7 +247,7 @@ fun LoginScreen(
                 }
             } else {
                 Text(
-                    text = "Inicia sesión manual para activar biometría",
+                    text = "Log in manually to activate biometric",
                     style = Typography.bodySmall,
                     color = MediumGray,
                     textAlign = TextAlign.Center,

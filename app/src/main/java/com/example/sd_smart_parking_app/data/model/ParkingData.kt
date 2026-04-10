@@ -3,7 +3,6 @@ package com.example.sd_smart_parking_app.data.model
 import com.google.firebase.Timestamp
 import com.google.firebase.firestore.PropertyName
 
-// config/parking
 data class ParkingConfig(
     var parkingName: String = "",
     var numberOfFloors: Int = 0,

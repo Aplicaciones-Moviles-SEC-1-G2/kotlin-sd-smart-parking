@@ -62,8 +62,8 @@ fun ProfileScreen(
     if (showLogoutDialog) {
         AlertDialog(
             onDismissRequest = { showLogoutDialog = false },
-            title = { Text("Cerrar Sesión", style = Typography.headlineSmall) },
-            text = { Text("¿Estás seguro de que deseas cerrar sesión?", style = Typography.bodyMedium) },
+            title = { Text("Log Out", style = Typography.headlineSmall) },
+            text = { Text("You Sure you want log out?", style = Typography.bodyMedium) },
             confirmButton = {
                 Button(
                     onClick = {
@@ -74,7 +74,7 @@ fun ProfileScreen(
                     },
                     colors = ButtonDefaults.buttonColors(containerColor = ErrorRed)
                 ) {
-                    Text("Cerrar Sesión", color = White)
+                    Text("Log Out", color = White)
                 }
             },
             dismissButton = {
@@ -82,7 +82,7 @@ fun ProfileScreen(
                     onClick = { showLogoutDialog = false },
                     colors = ButtonDefaults.buttonColors(containerColor = MediumGray)
                 ) {
-                    Text("Cancelar", color = White)
+                    Text("Cancel", color = White)
                 }
             }
         )
