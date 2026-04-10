@@ -1,9 +1,12 @@
 package com.example.sd_smart_parking_app.ui.screens.navigation
 
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
+import androidx.navigation.NavController
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
+import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navigation
 import com.example.sd_smart_parking_app.data.model.UserProfile
 import com.example.sd_smart_parking_app.data.model.UserCar
@@ -14,7 +17,11 @@ import com.example.sd_smart_parking_app.ui.screens.login.LoginScreen
 import com.example.sd_smart_parking_app.ui.screens.register.RegisterScreen
 import com.example.sd_smart_parking_app.ui.screens.home.HomeScreen
 import com.example.sd_smart_parking_app.ui.screens.profile.ProfileScreen
+import com.google.firebase.Firebase
 import com.google.firebase.Timestamp
+import com.google.firebase.analytics.FirebaseAnalytics
+import com.google.firebase.analytics.analytics
+import com.google.firebase.analytics.logEvent
 import com.google.firebase.auth.FirebaseAuth
 
 // Rutas de navegación
@@ -35,6 +42,21 @@ fun SmartParkingNavGraph(
     navController: NavHostController
 ) {
     val repository = ParkingRepository()
+    val analytics = Firebase.analytics
+
+    // Escuchador de cambios de destino
+    DisposableEffect(navController) {
+        val listener = NavController.OnDestinationChangedListener { _, destination, _ ->
+            analytics.logEvent(FirebaseAnalytics.Event.SCREEN_VIEW) {
+                param(FirebaseAnalytics.Param.SCREEN_NAME, destination.route ?: "unknown")
+                param(FirebaseAnalytics.Param.SCREEN_CLASS, "MainActivity")
+            }
+        }
+        navController.addOnDestinationChangedListener(listener)
+        onDispose {
+            navController.removeOnDestinationChangedListener(listener)
+        }
+    }
 
     NavHost(
         navController = navController,

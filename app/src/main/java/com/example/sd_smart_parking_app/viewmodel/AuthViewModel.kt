@@ -11,12 +11,17 @@ import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.UserProfileChangeRequest
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import com.google.firebase.analytics.FirebaseAnalytics
+import com.google.firebase.analytics.analytics
+import com.google.firebase.analytics.logEvent
+import com.google.firebase.Firebase
 
 class AuthViewModel(application: Application) : AndroidViewModel(application) {
     
     private val auth = FirebaseAuth.getInstance()
     private val authRepository = AuthRepository(application)
     private var currentStrategy: AuthStrategy? = null
+    private var firebaseAnalytics: FirebaseAnalytics = Firebase.analytics
 
     private val _isLoading = MutableStateFlow(false)
     val isLoading: StateFlow<Boolean> = _isLoading
@@ -58,6 +63,14 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
             } else {
                 _errorMessage.value = error ?: "Error al iniciar sesión"
             }
+        }
+    }
+
+    fun logLoginMethod(method: String) {
+        // Registramos el evento con el parámetro del method utilizado
+        firebaseAnalytics.logEvent("login_success_tracking") {
+            param("login_type", method) // Valores: "email" o "biometric"
+            param("timestamp", System.currentTimeMillis().toString())
         }
     }
 

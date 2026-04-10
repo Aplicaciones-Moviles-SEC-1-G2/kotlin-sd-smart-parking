@@ -173,6 +173,7 @@ fun LoginScreen(
                 onClick = { 
                     if (isFormValid && !isLoading) {
                         viewModel.loginWithEmail(email, password) {
+                            viewModel.logLoginMethod("email") // <--- Registro de analítica
                             onLoginSuccess(email, "password_hidden")
                         }
                     }
@@ -189,6 +190,7 @@ fun LoginScreen(
                         val activity = context as? FragmentActivity
                         if (activity != null) {
                             viewModel.loginWithBiometrics(activity) {
+                                viewModel.logLoginMethod("biometric") // <--- Registro de analítica
                                 onLoginSuccess(savedEmail ?: "biometric_user", "biometric_token")
                             }
                         }
