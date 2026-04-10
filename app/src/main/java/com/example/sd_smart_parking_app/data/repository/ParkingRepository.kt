@@ -11,9 +11,22 @@ import com.google.firebase.firestore.QuerySnapshot
 import com.google.firebase.auth.FirebaseAuth
 
 
-class ParkingRepository {
+class ParkingRepository private constructor() {
     private val db = Firebase.firestore
     private val auth = FirebaseAuth.getInstance()
+
+    companion object {
+        @Volatile
+        private var INSTANCE: ParkingRepository? = null
+
+        fun getInstance(): ParkingRepository {
+            return INSTANCE ?: synchronized(this) {
+                val instance = ParkingRepository()
+                INSTANCE = instance
+                instance
+            }
+        }
+    }
 
     // Obtener configuración del parqueadero con actualizaciones en vivo
     fun getParkingConfig(onSuccess: (ParkingConfig) -> Unit) {

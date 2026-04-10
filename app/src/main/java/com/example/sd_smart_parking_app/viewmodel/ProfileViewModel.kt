@@ -7,7 +7,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 
 class ProfileViewModel : ViewModel() {
-    private val repository = ParkingRepository()
+    private val repository = ParkingRepository.getInstance()
 
     // Información del perfil
     private val _userProfile = MutableStateFlow(UserProfile())

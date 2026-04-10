@@ -17,7 +17,7 @@ data class DetailsUIState(
     val isLoading: Boolean = false
 )
 
-class DetailsViewModel(private val repository: ParkingRepository = ParkingRepository()) : ViewModel() {
+class DetailsViewModel(private val repository: ParkingRepository = ParkingRepository.getInstance()) : ViewModel() {
 
     private val _detailsState = MutableStateFlow(DetailsUIState())
     val detailsState: StateFlow<DetailsUIState> = _detailsState

@@ -41,7 +41,7 @@ object NavRoutes {
 fun SmartParkingNavGraph(
     navController: NavHostController
 ) {
-    val repository = ParkingRepository()
+    val repository = ParkingRepository.getInstance()
     val analytics = Firebase.analytics
 
     // Escuchador de cambios de destino
