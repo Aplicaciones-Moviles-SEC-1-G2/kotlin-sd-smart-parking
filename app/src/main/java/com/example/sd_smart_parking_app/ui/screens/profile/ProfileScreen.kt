@@ -12,9 +12,15 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Logout
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
@@ -29,22 +35,58 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.sd_smart_parking_app.ui.theme.BackgroundLightGray
 import com.example.sd_smart_parking_app.ui.theme.BackgroundWhite
 import com.example.sd_smart_parking_app.ui.theme.CornerRadius
+import com.example.sd_smart_parking_app.ui.theme.DarkText
 import com.example.sd_smart_parking_app.ui.theme.Elevation
+import com.example.sd_smart_parking_app.ui.theme.ErrorRed
+import com.example.sd_smart_parking_app.ui.theme.MediumGray
 import com.example.sd_smart_parking_app.ui.theme.SmartParkingTheme
 import com.example.sd_smart_parking_app.ui.theme.Spacing
 import com.example.sd_smart_parking_app.ui.theme.Typography
 import com.example.sd_smart_parking_app.ui.theme.WarningYellow
 import com.example.sd_smart_parking_app.ui.theme.White
+import com.example.sd_smart_parking_app.viewmodel.AuthViewModel
 import com.example.sd_smart_parking_app.viewmodel.ProfileViewModel
 
 @Composable
 fun ProfileScreen(
     modifier: Modifier = Modifier,
     viewModel: ProfileViewModel = viewModel(),
+    authViewModel: AuthViewModel = viewModel(),
     onNavigateToLogin: () -> Unit
 ) {
     val userProfile by viewModel.userProfile.collectAsState()
     val isLoading by viewModel.isLoading.collectAsState()
+    var showLogoutDialog by remember { mutableStateOf(false) }
+
+    // Dialog de confirmación de logout
+    if (showLogoutDialog) {
+        AlertDialog(
+            onDismissRequest = { showLogoutDialog = false },
+            title = { Text("Cerrar Sesión", style = Typography.headlineSmall) },
+            text = { Text("¿Estás seguro de que deseas cerrar sesión?", style = Typography.bodyMedium) },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        // Limpiar Remember Me y hacer logout
+                        authViewModel.signOut()
+                        showLogoutDialog = false
+                        onNavigateToLogin()
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = ErrorRed)
+                ) {
+                    Text("Cerrar Sesión", color = White)
+                }
+            },
+            dismissButton = {
+                Button(
+                    onClick = { showLogoutDialog = false },
+                    colors = ButtonDefaults.buttonColors(containerColor = MediumGray)
+                ) {
+                    Text("Cancelar", color = White)
+                }
+            }
+        )
+    }
 
     Scaffold(
         modifier = modifier.fillMaxSize()
@@ -64,17 +106,17 @@ fun ProfileScreen(
                     .padding(paddingValues)
                     .verticalScroll(rememberScrollState())
             ) {
-                // Header
+                // Header con botón de logout mejorado
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(Spacing.lg),
-                    verticalAlignment = Alignment.CenterVertically, // Alinea verticalmente al centro
-                    horizontalArrangement = Arrangement.SpaceBetween // Empuja los elementos a los extremos
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
                 ) {
                     // Columna de textos (Izquierda)
                     Column(
-                        modifier = Modifier.weight(1f) // Esto hace que la columna ocupe totalmente el espacio sobrante
+                        modifier = Modifier.weight(1f)
                     ) {
                         Text(
                             text = "Profile",
@@ -87,13 +129,16 @@ fun ProfileScreen(
                         )
                     }
 
-                    // Botón de Logout (Derecha)
+                    // Botón de Logout Mejorado (Derecha)
                     IconButton(
-                        onClick = {
-                            viewModel.logout { onNavigateToLogin() }
-                        }
+                        onClick = { showLogoutDialog = true }
                     ) {
-                        Text("🚪", fontSize = 24.sp) // Puedes usar un icono de cerrar sesión
+                        Icon(
+                            imageVector = Icons.Default.Logout,
+                            contentDescription = "Logout",
+                            tint = ErrorRed,
+                            modifier = Modifier.size(24.dp)
+                        )
                     }
                 }
 
@@ -209,7 +254,7 @@ fun ProfileScreen(
                     } else {
                         "No vehicle registered"
                     }
-                    
+
                     AccountCard(
                         icon = "🚗",
                         label = "Vehicle",
