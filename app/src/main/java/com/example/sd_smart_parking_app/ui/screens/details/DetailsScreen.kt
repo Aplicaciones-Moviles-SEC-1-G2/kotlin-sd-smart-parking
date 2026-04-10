@@ -46,11 +46,6 @@ fun DetailsScreen(
     val context = LocalContext.current
     val notificationViewModel = remember { NotificationViewModel(context = context) }
 
-    val totalSpots = detailsState.parkingConfig.numberOfFloors * detailsState.parkingConfig.spotsPerFloor
-    val availableSpots = detailsState.parkingSpots.count { it.isAvailable }
-    val occupiedSpots = totalSpots - availableSpots
-    var lastUpdate by remember { mutableStateOf(SimpleDateFormat("h:mm:ss a", Locale.getDefault()).format(Date())) }
-
     // Verificar disponibilidad y enviar notificaciones
     LaunchedEffect(detailsState.parkingSpots) {
         if (detailsState.parkingSpots.isNotEmpty()) {
@@ -98,7 +93,7 @@ fun DetailsScreen(
                     color = White,
                     shadowElevation = 2.dp,
                     onClick = {
-                        lastUpdate = SimpleDateFormat("h:mm:ss a", Locale.getDefault()).format(Date())
+                        viewModel.refreshData()
                     }
                 ) {
                     Box(contentAlignment = Alignment.Center) {
@@ -160,9 +155,9 @@ fun DetailsScreen(
                     horizontalArrangement = Arrangement.SpaceEvenly,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    SummaryItem(value = totalSpots.toString(), label = "Total")
-                    SummaryItem(value = availableSpots.toString(), label = "Available")
-                    SummaryItem(value = occupiedSpots.toString(), label = "Occupied")
+                    SummaryItem(value = detailsState.totalSpots.toString(), label = "Total")
+                    SummaryItem(value = detailsState.availableSpots.toString(), label = "Available")
+                    SummaryItem(value = detailsState.occupiedSpots.toString(), label = "Occupied")
                 }
             }
 
@@ -189,23 +184,13 @@ fun DetailsScreen(
             Column(
                 verticalArrangement = Arrangement.spacedBy(Spacing.md)
             ) {
-                for (floorNum in 1..detailsState.parkingConfig.numberOfFloors) {
-                    val spotsInFloor = detailsState.parkingSpots.filter { it.floor == floorNum }
-                    val floorTotal = detailsState.parkingConfig.spotsPerFloor
-                    val floorAvailable = spotsInFloor.count { it.isAvailable }
-
-                    val floorPercentage = if (floorTotal > 0) (floorAvailable * 100) / floorTotal else 0
-
+                detailsState.floorStates.forEach { floor ->
                     FloorCard(
-                        floorNumber = floorNum,
-                        availableSpots = floorAvailable,
-                        totalSpots = floorTotal,
-                        availabilityPercentage = floorPercentage,
-                        availabilityStatus = when {
-                            floorPercentage > 60 -> "High"
-                            floorPercentage > 30 -> "Medium"
-                            else -> "Low"
-                        }
+                        floorNumber = floor.floorNumber,
+                        availableSpots = floor.availableSpots,
+                        totalSpots = floor.totalSpots,
+                        availabilityPercentage = floor.availabilityPercentage,
+                        availabilityStatus = floor.availabilityStatus
                     )
                 }
             }
@@ -258,7 +243,7 @@ fun DetailsScreen(
                 contentAlignment = Alignment.Center
             ) {
                 Text(
-                    text = "Last update: $lastUpdate",
+                    text = "Last update: ${detailsState.lastUpdate}",
                     style = Typography.bodySmall.copy(color = LastUpdateGray)
                 )
             }
