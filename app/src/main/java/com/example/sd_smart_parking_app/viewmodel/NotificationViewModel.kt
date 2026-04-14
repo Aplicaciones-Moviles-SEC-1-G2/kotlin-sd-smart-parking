@@ -8,7 +8,7 @@ import com.example.sd_smart_parking_app.data.repository.NotificationRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
-import kotlin.random.Random
+import android.util.Log
 
 data class NotificationPreferences(
     val enableHighAvailabilityNotifications: Boolean = true,
@@ -19,7 +19,6 @@ data class NotificationPreferences(
 
 class NotificationViewModel(context: Context) : ViewModel() {
 
-    // Repository
     private val notificationRepository = NotificationRepository(
         NotificationManagerHelper(context)
     )
@@ -29,17 +28,39 @@ class NotificationViewModel(context: Context) : ViewModel() {
 
     private val _lastNotificationTime = MutableStateFlow<Long>(0)
 
+    // Cooldown de 5 minutos para evitar notificaciones repetidas
+    private val notificationCooldownMs = 5 * 60 * 1000L
+
     fun updateNotificationPreferences(preferences: NotificationPreferences) {
         _notificationPreferences.value = preferences
     }
 
-    fun sendTestNotification() {
+    /**
+     * Compara spots anteriores con actuales y notifica si se liberaron nuevos cupos
+     * y la hora actual está dentro del rango de llegada habitual del usuario
+     */
+    fun checkAndNotifyNewSpots(
+        previousSpots: List<Boolean>,
+        currentSpots: List<Boolean>
+    ) {
+        // Contar cuántos spots pasaron de ocupado (false) a disponible (true)
+        val newlyAvailable = currentSpots.zip(previousSpots).count { (current, previous) ->
+            current && !previous
+        }
+
+        if (newlyAvailable <= 0) return
+
+        // Respetar cooldown para no spamear notificaciones
+        val now = System.currentTimeMillis()
+        if (now - _lastNotificationTime.value < notificationCooldownMs) {
+            Log.d("NotificationViewModel", "Notification skipped — cooldown active")
+            return
+        }
+
+        _lastNotificationTime.value = now
+
         viewModelScope.launch {
-            notificationRepository.sendTestNotification(
-                floorNumber = Random.nextInt(1, 4),
-                availableSpots = Random.nextInt(5, 20),
-                occupancyPercentage = Random.nextInt(10, 50)
-            )
+            notificationRepository.checkAndNotifyIfInUserRange(newlyAvailable)
         }
     }
 

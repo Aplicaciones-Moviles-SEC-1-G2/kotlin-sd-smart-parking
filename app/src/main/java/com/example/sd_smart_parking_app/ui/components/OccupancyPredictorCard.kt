@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.DirectionsCar
+import androidx.compose.material.icons.filled.Psychology
 import androidx.compose.material.icons.filled.WarningAmber
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
@@ -22,6 +23,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
@@ -31,6 +33,9 @@ import com.example.sd_smart_parking_app.ui.theme.NavigationBlue
 import com.example.sd_smart_parking_app.ui.theme.SmartParkingTheme
 import com.example.sd_smart_parking_app.ui.theme.Spacing
 import com.example.sd_smart_parking_app.ui.theme.Typography
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 
 @Composable
 fun OccupancyPredictorCard(
@@ -49,19 +54,19 @@ fun OccupancyPredictorCard(
     }
 
     val backgroundColor = if (prediction.isBusy) {
-        Color(0xFFFFEBEE) // Rojo claro
+        Color(0xFFFFEBEE)
     } else {
-        Color(0xFFE8F5E9) // Verde claro
+        Color(0xFFE8F5E9)
     }
 
     val statusColor = if (prediction.isBusy) {
-        Color(0xFFC62828) // Rojo oscuro
+        Color(0xFFC62828)
     } else {
-        Color(0xFF2E7D32) // Verde oscuro
+        Color(0xFF2E7D32)
     }
 
     val statusText = if (prediction.isBusy) {
-        "🔴 Occuped Parking"
+        "🔴 Occupied Parking"
     } else {
         "🟢 Available Spots"
     }
@@ -101,7 +106,6 @@ fun OccupancyPredictorCard(
                     )
                 }
 
-                // Mostrar advertencia si está ocupado
                 if (prediction.isBusy) {
                     Icon(
                         imageVector = Icons.Default.WarningAmber,
@@ -134,7 +138,6 @@ fun OccupancyPredictorCard(
                     color = statusColor,
                     fontWeight = FontWeight.SemiBold
                 )
-
                 Text(
                     text = "${prediction.predictedOccupancy.toInt()}%",
                     style = Typography.headlineSmall,
@@ -179,7 +182,7 @@ fun OccupancyPredictorCard(
                         color = Color.Gray
                     )
                     Text(
-                        text = String.format("%02d:00", prediction.hour),
+                        text = SimpleDateFormat("h:mm a", Locale.getDefault()).format(Date()),
                         style = Typography.bodySmall,
                         color = Color.Gray,
                         fontWeight = FontWeight.SemiBold
@@ -219,6 +222,40 @@ fun OccupancyPredictorCard(
                         color = statusColor,
                         fontWeight = FontWeight.SemiBold
                     )
+                }
+
+                // Reasoning de Claude
+                if (prediction.reasoning.isNotBlank()) {
+                    Spacer(modifier = Modifier.height(Spacing.xs))
+
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(1.dp)
+                            .background(Color.Gray.copy(alpha = 0.2f))
+                    )
+
+                    Spacer(modifier = Modifier.height(Spacing.xs))
+
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(Spacing.xs),
+                        verticalAlignment = Alignment.Top
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Psychology,
+                            contentDescription = "AI Reasoning",
+                            tint = Color.Gray.copy(alpha = 0.7f),
+                            modifier = Modifier
+                                .size(14.dp)
+                                .padding(top = 1.dp)
+                        )
+                        Text(
+                            text = prediction.reasoning,
+                            style = Typography.bodySmall,
+                            color = Color.Gray.copy(alpha = 0.8f),
+                            fontStyle = FontStyle.Italic
+                        )
+                    }
                 }
             }
         }
@@ -281,29 +318,28 @@ fun OccupancyPredictorCardPreview() {
                 .padding(Spacing.md),
             verticalArrangement = Arrangement.spacedBy(Spacing.md)
         ) {
-            // Card ocupado
             OccupancyPredictorCard(
                 prediction = OccupancyPrediction(
                     hour = 14,
                     predictedOccupancy = 85f,
                     confidence = 95f,
                     recommendedTime = "10:00",
-                    isBusy = true
+                    isBusy = false,
+                    reasoning = "High availability expected based on typical Tuesday afternoon patterns."
                 )
             )
 
-            // Card con espacio
             OccupancyPredictorCard(
                 prediction = OccupancyPrediction(
                     hour = 9,
-                    predictedOccupancy = 30f,
+                    predictedOccupancy = 20f,
                     confidence = 85f,
-                    recommendedTime = "09:00",
-                    isBusy = false
+                    recommendedTime = "15:00",
+                    isBusy = true,
+                    reasoning = "Peak arrival hours historically show low availability on weekdays."
                 )
             )
 
-            // Card cargando
             OccupancyPredictorCard(
                 prediction = null,
                 isLoading = true

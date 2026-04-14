@@ -29,6 +29,7 @@ fun ParkingCard(
     availableSpots: Int,
     totalSpots: Int,
     availabilityPercentage: Int,
+    occupancyPercentage: Int,
     onNavigateClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -108,7 +109,7 @@ fun ParkingCard(
             ) {
                 InfoCard(
                     label = "Occupancy",
-                    value = "43%",
+                    value = "$occupancyPercentage%",
                     icon = "🚗",
                     modifier = Modifier.weight(1f)
                 )

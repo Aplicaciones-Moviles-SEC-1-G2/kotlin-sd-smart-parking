@@ -6,6 +6,7 @@ data class OccupancyPrediction(
     val confidence: Float,
     val recommendedTime: String,
     val isBusy: Boolean,
+    val reasoning: String = "",
     val timestamp: Long = System.currentTimeMillis()
 )
 
