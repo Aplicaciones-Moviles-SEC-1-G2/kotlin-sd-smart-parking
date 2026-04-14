@@ -1,7 +1,6 @@
 package com.example.sd_smart_parking_app.viewmodel
 
 import androidx.lifecycle.ViewModel
-import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.example.sd_smart_parking_app.data.model.ParkingConfig
 import com.example.sd_smart_parking_app.data.model.ParkingSpot
@@ -9,11 +8,9 @@ import com.example.sd_smart_parking_app.data.repository.ParkingRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.delay
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
-import kotlin.random.Random
 
 data class FloorState(
     val floorNumber: Int,
@@ -44,7 +41,6 @@ class SharedDetailsViewModel(private val repository: ParkingRepository = Parking
     fun initializeIfNeeded() {
         if (!isInitialized) {
             loadInitialData()
-            startUpdatingSpots()
             isInitialized = true
         }
     }
@@ -64,11 +60,14 @@ class SharedDetailsViewModel(private val repository: ParkingRepository = Parking
             }
             repository.getParkingSpots { spots ->
                 val currentState = _detailsState.value
+                val total = spots.size
                 val available = spots.count { it.isAvailable }
+                val occupied = total - available
                 _detailsState.value = currentState.copy(
                     parkingSpots = spots,
+                    totalSpots = total,
                     availableSpots = available,
-                    occupiedSpots = currentState.totalSpots - available,
+                    occupiedSpots = occupied,
                     isLoading = false,
                     lastUpdate = SimpleDateFormat("h:mm:ss a", Locale.getDefault()).format(Date())
                 )
@@ -80,13 +79,13 @@ class SharedDetailsViewModel(private val repository: ParkingRepository = Parking
     private fun updateFloorStates() {
         val config = _detailsState.value.parkingConfig
         val spots = _detailsState.value.parkingSpots
-        
+
         val newFloorStates = (1..config.numberOfFloors).map { floorNum ->
             val spotsInFloor = spots.filter { it.floor == floorNum }
-            val floorTotal = config.spotsPerFloor
+            val floorTotal = spotsInFloor.size
             val floorAvailable = spotsInFloor.count { it.isAvailable }
             val floorPercentage = if (floorTotal > 0) (floorAvailable * 100) / floorTotal else 0
-            
+
             FloorState(
                 floorNumber = floorNum,
                 availableSpots = floorAvailable,
@@ -99,30 +98,8 @@ class SharedDetailsViewModel(private val repository: ParkingRepository = Parking
                 }
             )
         }
-        
-        _detailsState.value = _detailsState.value.copy(floorStates = newFloorStates)
-    }
 
-    private fun startUpdatingSpots() {
-        viewModelScope.launch {
-            while (true) {
-                delay(10000) // Actualizar cada 10 segundos
-                val currentSpots = _detailsState.value.parkingSpots
-                if (currentSpots.isNotEmpty()) {
-                    val updatedSpots = currentSpots.map { spot ->
-                        spot.copy(isAvailable = Random.nextBoolean())
-                    }
-                    val available = updatedSpots.count { it.isAvailable }
-                    _detailsState.value = _detailsState.value.copy(
-                        parkingSpots = updatedSpots,
-                        availableSpots = available,
-                        occupiedSpots = _detailsState.value.totalSpots - available,
-                        lastUpdate = SimpleDateFormat("h:mm:ss a", Locale.getDefault()).format(Date())
-                    )
-                    updateFloorStates()
-                }
-            }
-        }
+        _detailsState.value = _detailsState.value.copy(floorStates = newFloorStates)
     }
 
     fun refreshData() {

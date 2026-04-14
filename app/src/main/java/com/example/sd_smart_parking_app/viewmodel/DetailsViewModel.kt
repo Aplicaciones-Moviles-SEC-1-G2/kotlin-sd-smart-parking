@@ -8,8 +8,6 @@ import com.example.sd_smart_parking_app.data.repository.ParkingRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.delay
-import kotlin.random.Random
 
 data class DetailsUIState(
     val parkingConfig: ParkingConfig = ParkingConfig(),
@@ -24,7 +22,6 @@ class DetailsViewModel(private val repository: ParkingRepository = ParkingReposi
 
     init {
         loadInitialData()
-        startUpdatingSpots()
     }
 
     private fun loadInitialData() {
@@ -38,19 +35,6 @@ class DetailsViewModel(private val repository: ParkingRepository = ParkingReposi
                     parkingSpots = spots,
                     isLoading = false
                 )
-            }
-        }
-    }
-
-    private fun startUpdatingSpots() {
-        viewModelScope.launch {
-            while (true) {
-                delay(10000) // Actualizar cada 10 segundos
-                val currentSpots = _detailsState.value.parkingSpots
-                val updatedSpots = currentSpots.map { spot ->
-                    spot.copy(isAvailable = Random.nextBoolean())
-                }
-                _detailsState.value = _detailsState.value.copy(parkingSpots = updatedSpots)
             }
         }
     }

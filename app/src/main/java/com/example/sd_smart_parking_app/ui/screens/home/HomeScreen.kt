@@ -55,7 +55,7 @@ fun HomeScreen(
         if (detailsState.parkingSpots.isNotEmpty() && detailsState.parkingConfig.numberOfFloors > 0) {
             val floors = (1..detailsState.parkingConfig.numberOfFloors).map { floorNum ->
                 val spotsInFloor = detailsState.parkingSpots.filter { it.floor == floorNum }
-                val floorTotal = detailsState.parkingConfig.spotsPerFloor
+                val floorTotal = spotsInFloor.size
                 val floorAvailable = spotsInFloor.count { it.isAvailable }
                 val floorPercentage = if (floorTotal > 0) (floorAvailable * 100) / floorTotal else 0
 
@@ -75,20 +75,26 @@ fun HomeScreen(
             floorRecommendationViewModel.updateRecommendation(floors)
 
             // Guardar datos de ocupación actual para entrenar el modelo
-            val occupancyPercentage = 100f - ((detailsState.parkingSpots.count { it.isAvailable } * 100f) / (detailsState.parkingConfig.numberOfFloors * detailsState.parkingConfig.spotsPerFloor))
+            val totalSpotsForOccupancy = detailsState.parkingSpots.size
+            val availableSpotsForOccupancy = detailsState.parkingSpots.count { it.isAvailable }
+            val occupancyPercentage = if (totalSpotsForOccupancy > 0)
+                ((totalSpotsForOccupancy - availableSpotsForOccupancy) * 100f) / totalSpotsForOccupancy
+            else 0f
             occupancyPredictorViewModel.saveCurrentOccupancyData(
                 occupancyPercentage = occupancyPercentage,
-                availableSpots = detailsState.parkingSpots.count { it.isAvailable },
-                totalSpots = detailsState.parkingConfig.numberOfFloors * detailsState.parkingConfig.spotsPerFloor
+                availableSpots = availableSpotsForOccupancy,
+                totalSpots = totalSpotsForOccupancy
             )
 
             lastUpdate = SimpleDateFormat("h:mm:ss a", Locale.getDefault()).format(Date())
         }
     }
 
-    val totalSpots = detailsState.parkingConfig.numberOfFloors * detailsState.parkingConfig.spotsPerFloor
+    val totalSpots = detailsState.parkingSpots.size
     val availableSpots = detailsState.parkingSpots.count { it.isAvailable }
+    val occupiedSpots = totalSpots - availableSpots
     val availabilityPercentage = if (totalSpots > 0) (availableSpots * 100) / totalSpots else 0
+    val occupancyPercentageDisplay = if (totalSpots > 0) (occupiedSpots * 100) / totalSpots else 0
 
     Scaffold(
         modifier = modifier.fillMaxSize()
@@ -108,6 +114,7 @@ fun HomeScreen(
                 availableSpots = availableSpots,
                 totalSpots = totalSpots,
                 availabilityPercentage = availabilityPercentage,
+                occupancyPercentage = occupancyPercentageDisplay,
                 modifier = Modifier.padding(bottom = Spacing.lg),
                 onNavigateClick = onNavigationClick
             )
