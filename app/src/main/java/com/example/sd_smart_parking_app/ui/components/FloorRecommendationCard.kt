@@ -14,6 +14,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.sp
 import com.example.sd_smart_parking_app.data.repository.FloorRecommendation
@@ -95,7 +96,6 @@ fun FloorRecommendationCard(
                                 horizontalArrangement = Arrangement.spacedBy(Spacing.md),
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
-                                // Emoji del piso
                                 Box(
                                     modifier = Modifier
                                         .background(
@@ -111,7 +111,6 @@ fun FloorRecommendationCard(
                                     )
                                 }
 
-                                // Información del piso
                                 Column(
                                     modifier = Modifier.weight(1f)
                                 ) {
@@ -143,13 +142,56 @@ fun FloorRecommendationCard(
                                 .padding(Spacing.md)
                         ) {
                             Text(
-                                text = "${recommendation.reason}",
+                                text = recommendation.reason,
                                 style = Typography.bodySmall,
                                 fontWeight = FontWeight.SemiBold
                             )
                         }
+
+                        // Tiempo promedio histórico del usuario
+                        if (recommendation.userAvgDuration > 0) {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .background(
+                                        color = Color.White.copy(alpha = 0.5f),
+                                        shape = RoundedCornerShape(Spacing.md)
+                                    )
+                                    .padding(Spacing.md)
+                            ) {
+                                Text(
+                                    text = "⏱️ Your historical avg parking time: ${
+                                        formatDuration(recommendation.userAvgDuration)
+                                    }",
+                                    style = Typography.bodySmall.copy(fontStyle = FontStyle.Italic),
+                                    fontWeight = FontWeight.Medium
+                                )
+                            }
+                        }
+
+                        // Tiempo promedio del piso ese mismo día
+                        // Tiempo promedio del piso hoy
+                        if (recommendation.floorAvgDuration > 0) {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .background(
+                                        color = Color.White.copy(alpha = 0.5f),
+                                        shape = RoundedCornerShape(Spacing.md)
+                                    )
+                                    .padding(Spacing.md)
+                            ) {
+                                Text(
+                                    text = "🅿️ Avg parking time on this floor today: ${
+                                        formatDuration(recommendation.floorAvgDuration)
+                                    }",
+                                    style = Typography.bodySmall.copy(fontStyle = FontStyle.Italic),
+                                    fontWeight = FontWeight.Medium
+                                )
+                            }
+                        }
+
                     } else {
-                        // Sin espacios disponibles
                         Box(
                             modifier = Modifier
                                 .fillMaxWidth()
@@ -178,12 +220,22 @@ fun FloorRecommendationCard(
     }
 }
 
+private fun formatDuration(hours: Double): String {
+    val h = hours.toInt()
+    val m = ((hours - h) * 60).toInt()
+    return when {
+        h > 0 && m > 0 -> "${h}h ${m}min"
+        h > 0 -> "${h}h"
+        else -> "${m}min"
+    }
+}
+
 private fun getFloorColor(emoji: String): Color {
     return when (emoji) {
-        "🟢" -> Color(0xFFC8E6C9)  // Verde
-        "🟡" -> Color(0xFFFFF9C4)  // Amarillo
-        "🟠" -> Color(0xFFFFE0B2)  // Naranja
-        "🔴" -> Color(0xFFFFCDD2)  // Rojo
-        else -> Color(0xFFF5F5F5)   // Gris
+        "🟢" -> Color(0xFFC8E6C9)
+        "🟡" -> Color(0xFFFFF9C4)
+        "🟠" -> Color(0xFFFFE0B2)
+        "🔴" -> Color(0xFFFFCDD2)
+        else -> Color(0xFFF5F5F5)
     }
 }

@@ -24,17 +24,14 @@ class FloorRecommendationViewModel : ViewModel() {
     val recommendationState: StateFlow<FloorRecommendationUIState> = _recommendationState
 
     /**
-     * Calcula la recomendación del mejor piso basándose en los pisos disponibles
+     * Actualiza la recomendación usando context aware (duraciones de vehicleRecords)
      */
-    fun calculateRecommendation(floors: List<Floor>) {
+    fun updateRecommendation(floors: List<Floor>) {
         viewModelScope.launch {
             try {
                 _recommendationState.value = _recommendationState.value.copy(isLoading = true)
 
-                // Obtener la mejor recomendación
-                val recommendation = repository.getFloorRecommendation(floors)
-
-                // Obtener el ranking de pisos
+                val recommendation = repository.getFloorRecommendationContextAware(floors)
                 val rankedFloors = repository.getRankedFloors(floors)
 
                 _recommendationState.value = FloorRecommendationUIState(
@@ -46,16 +43,9 @@ class FloorRecommendationViewModel : ViewModel() {
             } catch (e: Exception) {
                 _recommendationState.value = _recommendationState.value.copy(
                     isLoading = false,
-                    error = "Error al calcular recomendación: ${e.message}"
+                    error = "Error calculating recommendation: ${e.message}"
                 )
             }
         }
-    }
-
-    /**
-     * Actualiza la recomendación cuando cambien los pisos
-     */
-    fun updateRecommendation(floors: List<Floor>) {
-        calculateRecommendation(floors)
     }
 }
