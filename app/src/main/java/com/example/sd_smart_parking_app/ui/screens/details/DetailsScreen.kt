@@ -29,7 +29,6 @@ import kotlinx.coroutines.delay
 import com.example.sd_smart_parking_app.viewmodel.NotificationViewModel
 import com.example.sd_smart_parking_app.viewmodel.SharedDetailsViewModel
 import androidx.compose.material3.Button
-import kotlin.random.Random
 import java.text.SimpleDateFormat
 import java.util.*
 import androidx.compose.runtime.collectAsState
@@ -46,14 +45,22 @@ fun DetailsScreen(
     val context = LocalContext.current
     val notificationViewModel = remember { NotificationViewModel(context = context) }
 
-    // Verificar disponibilidad y enviar notificaciones
+    // Tracks estado anterior de spots para detectar cambios
+    var previousSpotsAvailability by remember { mutableStateOf<List<Boolean>>(emptyList()) }
+
     LaunchedEffect(detailsState.parkingSpots) {
         if (detailsState.parkingSpots.isNotEmpty()) {
-            try {
-                notificationViewModel.sendTestNotification()
-            } catch (e: Exception) {
-                e.printStackTrace()
+            val currentAvailability = detailsState.parkingSpots.map { it.isAvailable }
+
+            // Solo comparar si ya teníamos un estado anterior
+            if (previousSpotsAvailability.isNotEmpty()) {
+                notificationViewModel.checkAndNotifyNewSpots(
+                    previousSpots = previousSpotsAvailability,
+                    currentSpots = currentAvailability
+                )
             }
+
+            previousSpotsAvailability = currentAvailability
         }
     }
 

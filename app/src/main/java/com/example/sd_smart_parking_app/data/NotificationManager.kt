@@ -47,6 +47,17 @@ class NotificationManagerHelper(private val context: Context) {
         sendNotification(title, message)
     }
 
+    fun sendNewSpotsAvailableNotification(
+        availableSpots: Int,
+        rangeStart: Int,
+        rangeEnd: Int
+    ) {
+        val title = "🅿️ New spots available!"
+        val message = "There are $availableSpots new spots available at the parking. " +
+                "This is your usual parking time (${String.format("%02d", rangeStart)}:00 - " +
+                "${String.format("%02d", rangeEnd)}:00). Come park now!"
+        sendNotification(title, message)
+    }
     private fun sendNotification(title: String, message: String) {
         createNotificationChannel()
 
