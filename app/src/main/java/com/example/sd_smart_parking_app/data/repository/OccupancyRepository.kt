@@ -18,7 +18,7 @@ import org.json.JSONObject
 import java.util.Calendar
 import java.util.concurrent.TimeUnit
 
-class OccupancyRepository {
+class OccupancyRepository private constructor() {
 
     private val firestore = FirebaseFirestore.getInstance()
     private val occupancyCollectionPath = "parking_occupancy_history"
@@ -30,10 +30,13 @@ class OccupancyRepository {
         .writeTimeout(30, TimeUnit.SECONDS)
         .build()
 
+    // -------------------------------------------------------------------------
+    // Caché de predicciones
+    // -------------------------------------------------------------------------
     private var cachedPrediction: OccupancyPrediction? = null
     private var cacheTimestamp: Long = 0
     private var cachedHour: Int = -1
-    private val cacheDurationMs = 30 * 60 * 1000L
+    private val cacheDurationMs = 30 * 60 * 1000L // 30 minutos
 
     private fun isCacheValid(targetHour: Int): Boolean {
         val now = System.currentTimeMillis()
@@ -41,6 +44,22 @@ class OccupancyRepository {
         val isNotExpired = (now - cacheTimestamp) < cacheDurationMs
         val hasData = cachedPrediction != null
         return hasData && isSameHour && isNotExpired
+    }
+
+    // -------------------------------------------------------------------------
+    // Singleton
+    // -------------------------------------------------------------------------
+    companion object {
+        @Volatile
+        private var INSTANCE: OccupancyRepository? = null
+
+        fun getInstance(): OccupancyRepository {
+            return INSTANCE ?: synchronized(this) {
+                val instance = OccupancyRepository()
+                INSTANCE = instance
+                instance
+            }
+        }
     }
 
     // -------------------------------------------------------------------------
@@ -210,7 +229,6 @@ class OccupancyRepository {
             val dayOfWeek = calendar.get(Calendar.DAY_OF_WEEK) - 1
             val dayName = listOf("Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday")[dayOfWeek]
 
-            // Resumen de ocupación histórica por hora
             val occupancySummary = buildString {
                 appendLine("Historical occupancy by hour (last 30 days averages):")
                 hourlyStats.forEach { stat ->
@@ -218,7 +236,6 @@ class OccupancyRepository {
                 }
             }
 
-            // Resumen de horas de llegada de vehículos
             val arrivalSummary = buildString {
                 if (arrivalStats.isNotEmpty()) {
                     appendLine("Vehicle arrival frequency by hour (total entries recorded):")
@@ -234,7 +251,6 @@ class OccupancyRepository {
                 }
             }
 
-            // Ultimos registros recientes
             val recentSummary = buildString {
                 if (recentData.isNotEmpty()) {
                     appendLine("Last 5 recent occupancy records:")
@@ -245,7 +261,6 @@ class OccupancyRepository {
                 }
             }
 
-            // Horas futuras disponibles para recomendar
             val futureHours = (1..12).map { (currentHour + it) % 24 }
             val futureHoursStr = futureHours.joinToString(", ") { "${String.format("%02d", it)}:00" }
 
@@ -265,8 +280,8 @@ class OccupancyRepository {
                 $recentSummary
 
                 Based on this data:
-                1. Predict the AVAILABILITY percentage (available spots / total spots) for hour ${'$'}{String.format("%02d", targetHour)}:00. Higher value means more spots available.
-                2. Recommend the BEST hour to park from the future hours list only (${'$'}futureHoursStr). Choose the hour with the HIGHEST expected availability that is NOT a peak arrival hour. If all future hours have similar availability, pick the earliest one.
+                1. Predict the AVAILABILITY percentage (available spots / total spots) for hour ${String.format("%02d", targetHour)}:00. Higher value means more spots available.
+                2. Recommend the BEST hour to park from the future hours list only ($futureHoursStr). Choose the hour with the HIGHEST expected availability that is NOT a peak arrival hour. If all future hours have similar availability, pick the earliest one.
 
                 Respond ONLY with a valid JSON object, no explanation, no markdown, no extra text:
                 {
@@ -329,7 +344,7 @@ class OccupancyRepository {
             cachedPrediction = prediction
             cacheTimestamp = System.currentTimeMillis()
             cachedHour = targetHour
-            Log.d("OccupancyRepository", "Cache updated for hour $targetHour")  
+            Log.d("OccupancyRepository", "Cache updated for hour $targetHour")
 
             Log.d("OccupancyRepository", "AI Prediction for hour $targetHour: ${prediction.predictedOccupancy}%")
             Result.success(prediction)
