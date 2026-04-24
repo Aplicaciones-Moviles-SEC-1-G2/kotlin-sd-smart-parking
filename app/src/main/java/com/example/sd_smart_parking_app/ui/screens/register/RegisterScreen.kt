@@ -250,7 +250,7 @@ fun RegisterScreen(
                             unfocusedLabelColor = MediumGray
                         ),
                         modifier = Modifier
-                            .menuAnchor()
+                            .menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable)
                             .fillMaxWidth(),
                         shape = RoundedCornerShape(CornerRadius.md)
                     )
