@@ -30,6 +30,19 @@ class OccupancyRepository {
         .writeTimeout(30, TimeUnit.SECONDS)
         .build()
 
+    private var cachedPrediction: OccupancyPrediction? = null
+    private var cacheTimestamp: Long = 0
+    private var cachedHour: Int = -1
+    private val cacheDurationMs = 30 * 60 * 1000L
+
+    private fun isCacheValid(targetHour: Int): Boolean {
+        val now = System.currentTimeMillis()
+        val isSameHour = cachedHour == targetHour
+        val isNotExpired = (now - cacheTimestamp) < cacheDurationMs
+        val hasData = cachedPrediction != null
+        return hasData && isSameHour && isNotExpired
+    }
+
     // -------------------------------------------------------------------------
     // Guardar datos de ocupación
     // -------------------------------------------------------------------------
@@ -177,6 +190,13 @@ class OccupancyRepository {
 
     suspend fun predictWithAI(targetHour: Int): Result<OccupancyPrediction> {
         return try {
+
+            // Verificar si hay caché válido
+            if (isCacheValid(targetHour)) {
+                Log.d("OccupancyRepository", "Cache hit — returning cached prediction for hour $targetHour")
+                return Result.success(cachedPrediction!!)
+            }
+
             val recentData = getRecentOccupancyData(30).getOrNull() ?: emptyList()
             val hourlyStats = getHourlyOccupancyStats().getOrNull() ?: emptyList()
             val arrivalStats = getVehicleArrivalStats()
@@ -304,6 +324,12 @@ class OccupancyRepository {
                 recommendedTime = predictionJson.getString("recommendedTime"),
                 reasoning = predictionJson.optString("reasoning", "")
             )
+
+            // Guardar en caché
+            cachedPrediction = prediction
+            cacheTimestamp = System.currentTimeMillis()
+            cachedHour = targetHour
+            Log.d("OccupancyRepository", "Cache updated for hour $targetHour")  
 
             Log.d("OccupancyRepository", "AI Prediction for hour $targetHour: ${prediction.predictedOccupancy}%")
             Result.success(prediction)
