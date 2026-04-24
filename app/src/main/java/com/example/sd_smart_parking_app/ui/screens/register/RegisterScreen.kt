@@ -19,6 +19,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.tooling.preview.Preview
@@ -59,15 +60,26 @@ fun RegisterScreen(
     var expanded by remember { mutableStateOf(false) }
     val roles = listOf("Driver", "Manager")
 
+    // Validation Regex
+    val emailRegex = "^[A-Za-z0-9+_.-]+@[A-Za-z0-9.-]+\\.[a-z]{2,}$".toRegex()
+    val plateRegex = "^[A-Z]{3}[0-9]{3}$".toRegex()
+    val phoneRegex = "^[0-9]{8,15}$".toRegex()
+
     // Validation logic
+    val isEmailValid = email.matches(emailRegex)
+    val isPlateValid = vehiclePlate.uppercase().matches(plateRegex)
+    val isPhoneValid = phone.matches(phoneRegex)
+    val isPasswordValid = password.length >= 6
+    val isConfirmPasswordValid = password == confirmPassword && confirmPassword.isNotEmpty()
+
     val isFormValid = name.isNotBlank() && 
-                      email.isNotBlank() && 
-                      phone.isNotBlank() &&
+                      isEmailValid && 
+                      isPhoneValid &&
                       vehicleModel.isNotBlank() &&
-                      vehiclePlate.isNotBlank() &&
+                      isPlateValid &&
                       role.isNotBlank() &&
-                      password.isNotBlank() && 
-                      password == confirmPassword
+                      isPasswordValid && 
+                      isConfirmPasswordValid
 
     Scaffold(
         modifier = modifier.fillMaxSize(),
@@ -109,7 +121,7 @@ fun RegisterScreen(
                 OutlinedTextField(
                     value = name,
                     onValueChange = { 
-                        name = it
+                        if (it.length <= 50) name = it
                         if (errorMessage != null) viewModel.clearError()
                     },
                     label = { Text("Full Name") },
@@ -128,47 +140,57 @@ fun RegisterScreen(
                 OutlinedTextField(
                     value = email,
                     onValueChange = { 
-                        email = it
+                        if (it.length <= 50) email = it
                         if (errorMessage != null) viewModel.clearError()
                     },
                     label = { Text("Email") },
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(CornerRadius.md),
                     colors = OutlinedTextFieldDefaults.colors(
-                        focusedBorderColor = DarkText,
-                        unfocusedBorderColor = BorderGray,
+                        focusedBorderColor = if (email.isEmpty() || isEmailValid) DarkText else ErrorRed,
+                        unfocusedBorderColor = if (email.isEmpty() || isEmailValid) BorderGray else ErrorRed,
                         focusedLabelColor = DarkText,
                         unfocusedLabelColor = MediumGray
                     ),
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
                     singleLine = true,
-                    enabled = !isLoading
+                    enabled = !isLoading,
+                    supportingText = {
+                        if (email.isNotEmpty() && !isEmailValid) {
+                            Text("Invalid email format", color = ErrorRed)
+                        }
+                    }
                 )
 
                 OutlinedTextField(
                     value = phone,
                     onValueChange = { 
-                        phone = it
+                        if (it.length <= 15 && it.all { char -> char.isDigit() }) phone = it
                         if (errorMessage != null) viewModel.clearError()
                     },
                     label = { Text("Phone Number") },
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(CornerRadius.md),
                     colors = OutlinedTextFieldDefaults.colors(
-                        focusedBorderColor = DarkText,
-                        unfocusedBorderColor = BorderGray,
+                        focusedBorderColor = if (phone.isEmpty() || isPhoneValid) DarkText else ErrorRed,
+                        unfocusedBorderColor = if (phone.isEmpty() || isPhoneValid) BorderGray else ErrorRed,
                         focusedLabelColor = DarkText,
                         unfocusedLabelColor = MediumGray
                     ),
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
                     singleLine = true,
-                    enabled = !isLoading
+                    enabled = !isLoading,
+                    supportingText = {
+                        if (phone.isNotEmpty() && !isPhoneValid) {
+                            Text("Use 8-15 digits", color = ErrorRed)
+                        }
+                    }
                 )
 
                 OutlinedTextField(
                     value = vehicleModel,
                     onValueChange = { 
-                        vehicleModel = it
+                        if (it.length <= 30) vehicleModel = it
                         if (errorMessage != null) viewModel.clearError()
                     },
                     label = { Text("Vehicle Model") },
@@ -187,20 +209,26 @@ fun RegisterScreen(
                 OutlinedTextField(
                     value = vehiclePlate,
                     onValueChange = { 
-                        vehiclePlate = it
+                        if (it.length <= 6) vehiclePlate = it.uppercase()
                         if (errorMessage != null) viewModel.clearError()
                     },
-                    label = { Text("Vehicle Plate") },
+                    label = { Text("Vehicle Plate (e.g. ASD123)") },
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(CornerRadius.md),
                     colors = OutlinedTextFieldDefaults.colors(
-                        focusedBorderColor = DarkText,
-                        unfocusedBorderColor = BorderGray,
+                        focusedBorderColor = if (vehiclePlate.isEmpty() || isPlateValid) DarkText else ErrorRed,
+                        unfocusedBorderColor = if (vehiclePlate.isEmpty() || isPlateValid) BorderGray else ErrorRed,
                         focusedLabelColor = DarkText,
                         unfocusedLabelColor = MediumGray
                     ),
+                    keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Characters),
                     singleLine = true,
-                    enabled = !isLoading
+                    enabled = !isLoading,
+                    supportingText = {
+                        if (vehiclePlate.isNotEmpty() && !isPlateValid) {
+                            Text("Format: 3 letters + 3 numbers", color = ErrorRed)
+                        }
+                    }
                 )
 
                 // Role Dropdown
@@ -246,28 +274,33 @@ fun RegisterScreen(
                 OutlinedTextField(
                     value = password,
                     onValueChange = { 
-                        password = it
+                        if (it.length <= 20) password = it
                         if (errorMessage != null) viewModel.clearError()
                     },
-                    label = { Text("Password") },
+                    label = { Text("Password (min. 6 chars)") },
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(CornerRadius.md),
                     visualTransformation = PasswordVisualTransformation(),
                     colors = OutlinedTextFieldDefaults.colors(
-                        focusedBorderColor = DarkText,
-                        unfocusedBorderColor = BorderGray,
+                        focusedBorderColor = if (password.isEmpty() || isPasswordValid) DarkText else ErrorRed,
+                        unfocusedBorderColor = if (password.isEmpty() || isPasswordValid) BorderGray else ErrorRed,
                         focusedLabelColor = DarkText,
                         unfocusedLabelColor = MediumGray
                     ),
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
                     singleLine = true,
-                    enabled = !isLoading
+                    enabled = !isLoading,
+                    supportingText = {
+                        if (password.isNotEmpty() && !isPasswordValid) {
+                            Text("Password too short", color = ErrorRed)
+                        }
+                    }
                 )
 
                 OutlinedTextField(
                     value = confirmPassword,
                     onValueChange = { 
-                        confirmPassword = it
+                        if (it.length <= 20) confirmPassword = it
                         if (errorMessage != null) viewModel.clearError()
                     },
                     label = { Text("Confirm Password") },
@@ -275,14 +308,19 @@ fun RegisterScreen(
                     shape = RoundedCornerShape(CornerRadius.md),
                     visualTransformation = PasswordVisualTransformation(),
                     colors = OutlinedTextFieldDefaults.colors(
-                        focusedBorderColor = if (password == confirmPassword) DarkText else ErrorRed,
-                        unfocusedBorderColor = if (password == confirmPassword) BorderGray else ErrorRed,
+                        focusedBorderColor = if (confirmPassword.isEmpty() || isConfirmPasswordValid) DarkText else ErrorRed,
+                        unfocusedBorderColor = if (confirmPassword.isEmpty() || isConfirmPasswordValid) BorderGray else ErrorRed,
                         focusedLabelColor = DarkText,
                         unfocusedLabelColor = MediumGray
                     ),
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
                     singleLine = true,
-                    enabled = !isLoading
+                    enabled = !isLoading,
+                    supportingText = {
+                        if (confirmPassword.isNotEmpty() && !isConfirmPasswordValid) {
+                            Text("Passwords do not match", color = ErrorRed)
+                        }
+                    }
                 )
             }
 

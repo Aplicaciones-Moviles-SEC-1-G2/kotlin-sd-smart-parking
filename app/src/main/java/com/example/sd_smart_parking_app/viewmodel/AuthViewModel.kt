@@ -9,6 +9,9 @@ import com.example.sd_smart_parking_app.data.auth.BiometricAuthStrategy
 import com.example.sd_smart_parking_app.data.auth.EmailAuthStrategy
 import com.example.sd_smart_parking_app.data.repository.AuthRepository
 import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.auth.FirebaseAuthInvalidCredentialsException
+import com.google.firebase.auth.FirebaseAuthUserCollisionException
+import com.google.firebase.auth.FirebaseAuthWeakPasswordException
 import com.google.firebase.auth.UserProfileChangeRequest
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -100,12 +103,18 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
                             if (profileTask.isSuccessful) {
                                 onSuccess()
                             } else {
-                                _errorMessage.value = profileTask.exception?.localizedMessage ?: "Error al actualizar el perfil"
+                                _errorMessage.value = profileTask.exception?.localizedMessage ?: "Error updating profile"
                             }
                         }
                 } else {
                     _isLoading.value = false
-                    _errorMessage.value = task.exception?.localizedMessage ?: "Error al registrarse"
+                    val exception = task.exception
+                    _errorMessage.value = when (exception) {
+                        is FirebaseAuthUserCollisionException -> "This email is already registered."
+                        is FirebaseAuthWeakPasswordException -> "The password is too weak."
+                        is FirebaseAuthInvalidCredentialsException -> "The email address is badly formatted."
+                        else -> "Registration failed. Please try again."
+                    }
                 }
             }
     }
