@@ -9,9 +9,6 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
 
-/**
- * Estado UI del Predictor de Ocupación
- */
 data class OccupancyPredictorUIState(
     val isLoading: Boolean = false,
     val currentPrediction: OccupancyPrediction? = null,
@@ -22,7 +19,7 @@ data class OccupancyPredictorUIState(
 
 class OccupancyPredictorViewModel : ViewModel() {
 
-    private val repository = OccupancyRepository()
+    private val repository = OccupancyRepository.getInstance()
 
     private val _uiState = MutableStateFlow(OccupancyPredictorUIState())
     val uiState: StateFlow<OccupancyPredictorUIState> = _uiState
@@ -32,9 +29,6 @@ class OccupancyPredictorViewModel : ViewModel() {
         loadCurrentPrediction()
     }
 
-    /**
-     * Cargar predicción para la hora actual
-     */
     fun loadCurrentPrediction() {
         viewModelScope.launch {
             _uiState.value = _uiState.value.copy(isLoading = true, errorMessage = null)
@@ -57,9 +51,6 @@ class OccupancyPredictorViewModel : ViewModel() {
         }
     }
 
-    /**
-     * Cargar predicciones para las próximas N horas
-     */
     fun loadNextHoursPredictions(hours: Int = 24) {
         viewModelScope.launch {
             _uiState.value = _uiState.value.copy(isLoading = true, errorMessage = null)
@@ -82,9 +73,6 @@ class OccupancyPredictorViewModel : ViewModel() {
         }
     }
 
-    /**
-     * Guardar datos de ocupación actual (para entrenar el modelo)
-     */
     fun saveCurrentOccupancyData(
         occupancyPercentage: Float,
         availableSpots: Int,
@@ -102,7 +90,6 @@ class OccupancyPredictorViewModel : ViewModel() {
                 _uiState.value = _uiState.value.copy(
                     successMessage = "Datos de ocupación guardados"
                 )
-                // Recargar predicción después de guardar datos
                 loadCurrentPrediction()
             }.onFailure { error ->
                 Log.e("OccupancyPredictorViewModel", "Error saving data: ${error.message}")
@@ -113,16 +100,10 @@ class OccupancyPredictorViewModel : ViewModel() {
         }
     }
 
-    /**
-     * Limpiar mensaje de error
-     */
     fun clearError() {
         _uiState.value = _uiState.value.copy(errorMessage = null)
     }
 
-    /**
-     * Limpiar mensaje de éxito
-     */
     fun clearSuccess() {
         _uiState.value = _uiState.value.copy(successMessage = null)
     }
