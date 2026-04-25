@@ -25,6 +25,7 @@ class AuthRepository(context: Context) {
         sharedPreferences.edit {
             putString("saved_email", email)
             putString("saved_pass", pass)
+            putLong("last_firebase_validation", System.currentTimeMillis())
         }
     }
 
@@ -36,9 +37,27 @@ class AuthRepository(context: Context) {
         return sharedPreferences.getString("saved_pass", null)
     }
 
+    fun validateOfflineCredentials(email: String, pass: String): Boolean {
+        val savedEmail = getSavedEmail()
+        val savedPass = getSavedPass()
+        val lastValidation = sharedPreferences.getLong("last_firebase_validation", 0)
+        
+        // Política de expiración: 7 días para forzar validación con Firebase si está offline
+        val isExpired = (System.currentTimeMillis() - lastValidation) > (7 * 24 * 60 * 60 * 1000)
+        
+        if (isExpired) {
+            Log.d("AuthRepository", "Offline credentials expired")
+            return false
+        }
+
+        return email == savedEmail && pass == savedPass
+    }
+
     fun clearCredentials() {
         sharedPreferences.edit {
-            clear()
+            remove("saved_email")
+            remove("saved_pass")
+            remove("last_firebase_validation")
         }
     }
 
@@ -75,7 +94,8 @@ class AuthRepository(context: Context) {
 
     fun shouldAutoLogin(): Boolean {
         val preferences = getRememberMePreferences()
-        val isSessionValid = (System.currentTimeMillis() - preferences.lastLoginTime) < (30 * 24 * 60 * 60 * 1000) // 30 días
+        // 30-day auto-login session — use Long literal to avoid Int overflow
+        val isSessionValid = (System.currentTimeMillis() - preferences.lastLoginTime) < (30L * 24 * 60 * 60 * 1000)
         return preferences.shouldAutoLogin && isSessionValid
     }
 }

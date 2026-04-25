@@ -9,6 +9,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
+import java.util.Calendar
 import java.util.Date
 import java.util.Locale
 
@@ -28,15 +29,28 @@ data class SharedDetailsUIState(
     val totalSpots: Int = 0,
     val availableSpots: Int = 0,
     val occupiedSpots: Int = 0,
-    val lastUpdate: String = ""
+    val lastUpdate: String = "",
+    val isFromCache: Boolean = false
 )
 
-class SharedDetailsViewModel(private val repository: ParkingRepository = ParkingRepository.getInstance()) : ViewModel() {
+class SharedDetailsViewModel(
+    private val repository: ParkingRepository = ParkingRepository.getInstance()
+) : ViewModel() {
 
     private val _detailsState = MutableStateFlow(SharedDetailsUIState())
     val detailsState: StateFlow<SharedDetailsUIState> = _detailsState
 
     private var isInitialized = false
+
+    init {
+        val savedTimestamp = repository.getLastServerUpdate()
+        if (savedTimestamp > 0L) {
+            _detailsState.value = _detailsState.value.copy(
+                lastUpdate = formatTimestamp(savedTimestamp),
+                isFromCache = true
+            )
+        }
+    }
 
     fun initializeIfNeeded() {
         if (!isInitialized) {
@@ -48,6 +62,7 @@ class SharedDetailsViewModel(private val repository: ParkingRepository = Parking
     private fun loadInitialData() {
         viewModelScope.launch {
             _detailsState.value = _detailsState.value.copy(isLoading = true)
+
             repository.getParkingConfig { config ->
                 val currentState = _detailsState.value
                 val total = config.numberOfFloors * config.spotsPerFloor
@@ -58,18 +73,29 @@ class SharedDetailsViewModel(private val repository: ParkingRepository = Parking
                 )
                 updateFloorStates()
             }
-            repository.getParkingSpots { spots ->
+
+            repository.getParkingSpotsWithSource { spots, isFromCache ->
                 val currentState = _detailsState.value
                 val total = spots.size
                 val available = spots.count { it.isAvailable }
                 val occupied = total - available
+
+                val displayTime = if (isFromCache) {
+                    val savedTs = repository.getLastServerUpdate()
+                    // Use saved server timestamp if available; fall back to now so the label is never blank
+                    if (savedTs > 0L) formatTimestamp(savedTs) else formatTimestamp(System.currentTimeMillis())
+                } else {
+                    formatTimestamp(System.currentTimeMillis())
+                }
+
                 _detailsState.value = currentState.copy(
                     parkingSpots = spots,
                     totalSpots = total,
                     availableSpots = available,
                     occupiedSpots = occupied,
                     isLoading = false,
-                    lastUpdate = SimpleDateFormat("h:mm:ss a", Locale.getDefault()).format(Date())
+                    lastUpdate = displayTime,
+                    isFromCache = isFromCache
                 )
                 updateFloorStates()
             }
@@ -103,9 +129,36 @@ class SharedDetailsViewModel(private val repository: ParkingRepository = Parking
     }
 
     fun refreshData() {
-        _detailsState.value = _detailsState.value.copy(
-            lastUpdate = SimpleDateFormat("h:mm:ss a", Locale.getDefault()).format(Date())
+        repository.forceRefreshParkingSpots(
+            onResult = { spots, timestamp ->
+                val total = spots.size
+                val available = spots.count { it.isAvailable }
+                val occupied = total - available
+                _detailsState.value = _detailsState.value.copy(
+                    parkingSpots = spots,
+                    totalSpots = total,
+                    availableSpots = available,
+                    occupiedSpots = occupied,
+                    lastUpdate = formatTimestamp(timestamp),
+                    isFromCache = false
+                )
+                updateFloorStates()
+            },
+            onError = { }
         )
+    }
+
+    private fun formatTimestamp(timestamp: Long): String {
+        val cal = Calendar.getInstance().apply { timeInMillis = timestamp }
+        val today = Calendar.getInstance()
+        return if (cal.get(Calendar.DATE) == today.get(Calendar.DATE) &&
+            cal.get(Calendar.MONTH) == today.get(Calendar.MONTH) &&
+            cal.get(Calendar.YEAR) == today.get(Calendar.YEAR)
+        ) {
+            SimpleDateFormat("h:mm:ss a", Locale.getDefault()).format(Date(timestamp))
+        } else {
+            SimpleDateFormat("MMM d, h:mm a", Locale.getDefault()).format(Date(timestamp))
+        }
     }
 
     companion object {

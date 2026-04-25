@@ -24,15 +24,28 @@ import androidx.compose.material.icons.filled.Person
 import androidx.fragment.app.FragmentActivity
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
+import com.example.sd_smart_parking_app.data.repository.ParkingRepository
 import com.example.sd_smart_parking_app.ui.components.BottomNavItem
 import com.example.sd_smart_parking_app.ui.components.SmartParkingBottomNavigationBar
 import com.example.sd_smart_parking_app.ui.screens.navigation.NavRoutes
 import com.example.sd_smart_parking_app.ui.screens.navigation.SmartParkingNavGraph
 import com.example.sd_smart_parking_app.ui.theme.SmartParkingTheme
+import com.google.firebase.Firebase
+import com.google.firebase.firestore.FirebaseFirestoreSettings
+import com.google.firebase.firestore.firestore
 
 class MainActivity : FragmentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+
+        val firestoreSettings = FirebaseFirestoreSettings.Builder()
+            .setPersistenceEnabled(true)
+            .setCacheSizeBytes(FirebaseFirestoreSettings.CACHE_SIZE_UNLIMITED)
+            .build()
+        Firebase.firestore.firestoreSettings = firestoreSettings
+
+        ParkingRepository.getInstance(this)
+
         setContent {
             SmartParkingTheme {
                 // A surface container using the 'background' color from the theme

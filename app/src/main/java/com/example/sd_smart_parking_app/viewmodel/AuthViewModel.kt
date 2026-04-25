@@ -8,6 +8,7 @@ import com.example.sd_smart_parking_app.data.auth.AuthStrategy
 import com.example.sd_smart_parking_app.data.auth.BiometricAuthStrategy
 import com.example.sd_smart_parking_app.data.auth.EmailAuthStrategy
 import com.example.sd_smart_parking_app.data.repository.AuthRepository
+import com.example.sd_smart_parking_app.utils.NetworkMonitor
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.FirebaseAuthInvalidCredentialsException
 import com.google.firebase.auth.FirebaseAuthUserCollisionException
@@ -24,7 +25,7 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
 
     private val auth = FirebaseAuth.getInstance()
     private val authRepository = AuthRepository(application)
-    private var currentStrategy: AuthStrategy? = null
+    private val networkMonitor = NetworkMonitor(application)
     private var firebaseAnalytics: FirebaseAnalytics = Firebase.analytics
 
     private val _isLoading = MutableStateFlow(false)
@@ -36,56 +37,116 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
     private val _savedEmail = MutableStateFlow<String?>(null)
     val savedEmail: StateFlow<String?> = _savedEmail
 
+    private val _isOffline = MutableStateFlow(false)
+    val isOffline: StateFlow<Boolean> = _isOffline
+
     init {
         _savedEmail.value = authRepository.getSavedEmail()
+        _isOffline.value = !networkMonitor.isOnline()
+    }
+
+    fun updateConnectionStatus() {
+        _isOffline.value = !networkMonitor.isOnline()
     }
 
     fun loginWithEmail(email: String, pass: String, onSuccess: () -> Unit) {
-        val strategy = EmailAuthStrategy(email, pass)
-        executeLoginInternal(strategy, onSuccess)
+        _isLoading.value = true
+        _errorMessage.value = null
+        updateConnectionStatus()
+
+        if (_isOffline.value) {
+            handleOfflineLogin(email, pass, onSuccess)
+        } else {
+            val strategy = EmailAuthStrategy(email, pass)
+            executeLoginInternal(strategy, onSuccess)
+        }
     }
 
     fun loginWithBiometrics(activity: FragmentActivity, onSuccess: () -> Unit) {
-        val strategy = BiometricAuthStrategy(activity, authRepository)
-        executeLoginInternal(strategy, onSuccess)
+        _isLoading.value = true
+        _errorMessage.value = null
+        updateConnectionStatus()
+
+        if (_isOffline.value) {
+            val email = authRepository.getSavedEmail()
+            val pass = authRepository.getSavedPass()
+            
+            val biometricPrompt = androidx.biometric.BiometricPrompt(
+                activity, androidx.core.content.ContextCompat.getMainExecutor(activity),
+                object : androidx.biometric.BiometricPrompt.AuthenticationCallback() {
+                    override fun onAuthenticationSucceeded(result: androidx.biometric.BiometricPrompt.AuthenticationResult) {
+                        if (email != null && pass != null) {
+                            handleOfflineLogin(email, pass, onSuccess)
+                        } else {
+                            _isLoading.value = false
+                            _errorMessage.value = "Please sign in manually first to enable biometric login"
+                        }
+                    }
+                    override fun onAuthenticationError(errorCode: Int, errString: CharSequence) {
+                        _isLoading.value = false
+                        _errorMessage.value = errString.toString()
+                    }
+                })
+
+            val promptInfo = androidx.biometric.BiometricPrompt.PromptInfo.Builder()
+                .setTitle("SD Smart Parking Access")
+                .setSubtitle("Use your fingerprint to sign in (Offline Mode)")
+                .setNegativeButtonText("Cancel")
+                .build()
+
+            biometricPrompt.authenticate(promptInfo)
+        } else {
+            val strategy = BiometricAuthStrategy(activity, authRepository)
+            executeLoginInternal(strategy, onSuccess)
+        }
+    }
+
+    private fun handleOfflineLogin(email: String, pass: String, onSuccess: () -> Unit) {
+        if (authRepository.validateOfflineCredentials(email, pass)) {
+            _isLoading.value = false
+            onSuccess()
+        } else {
+            _isLoading.value = false
+            _errorMessage.value = "Incorrect or expired offline credentials. Please connect to the internet to sign in."
+        }
     }
 
     private fun executeLoginInternal(strategy: AuthStrategy, onSuccess: () -> Unit) {
-        this.currentStrategy = strategy
-        _isLoading.value = true
-        _errorMessage.value = null
-
         strategy.login { success, error ->
             _isLoading.value = false
             if (success) {
-                // If it was an EmailAuthStrategy, we save credentials for future biometric use
                 if (strategy is EmailAuthStrategy) {
                     authRepository.saveCredentials(strategy.email, strategy.password)
                     _savedEmail.value = strategy.email
+                } else if (strategy is BiometricAuthStrategy) {
+                    // Actualizar timestamp de validación exitosa si fue biométrico exitoso en Firebase
+                    val email = authRepository.getSavedEmail()
+                    val pass = authRepository.getSavedPass()
+                    if (email != null && pass != null) {
+                        authRepository.saveCredentials(email, pass)
+                    }
                 }
                 onSuccess()
             } else {
-                _errorMessage.value = error ?: "Error al iniciar sesión"
+                _errorMessage.value = error ?: "Failed to sign in"
             }
         }
     }
 
     fun logLoginMethod(method: String) {
-        // Registramos el evento con el parámetro del method utilizado
         firebaseAnalytics.logEvent("login_success_tracking") {
-            param("login_type", method) // Valores: "email" o "biometric"
+            param("login_type", method)
             param("timestamp", System.currentTimeMillis().toString())
+            param("connection_state", if (_isOffline.value) "offline" else "online")
         }
     }
 
-    fun register(
-        name: String,
-        email: String,
-        password: String,
-        onSuccess: () -> Unit
-    ) {
-        if (email.isBlank() || password.isBlank() || name.isBlank()) return
-
+    fun register(name: String, email: String, password: String, onSuccess: () -> Unit) {
+        if (!networkMonitor.isOnline()) {
+            _errorMessage.value = "An internet connection is required to register."
+            return
+        }
+        
         _isLoading.value = true
         _errorMessage.value = null
 
@@ -123,50 +184,27 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
         _errorMessage.value = null
     }
 
-    /**
-     * Guardar preferencias de Remember Me
-     */
     fun setRememberMe(email: String, isEnabled: Boolean) {
         authRepository.saveRememberMePreferences(email, isEnabled)
-        Log.d("AuthViewModel", "Remember Me set: $isEnabled for $email")
     }
 
-    /**
-     * Obtener preferencias de Remember Me
-     */
     fun getRememberMePreferences() = authRepository.getRememberMePreferences()
 
-    /**
-     * Verificar si debe hacer auto-login
-     */
     fun checkAndAutoLogin(): Boolean {
-        val shouldAutoLogin = authRepository.shouldAutoLogin()
-
-        if (shouldAutoLogin) {
-            val preferences = authRepository.getRememberMePreferences()
-            Log.d("AuthViewModel", "Auto-login enabled for: ${preferences.savedEmail}")
-
-            return true
-        }
-
-        return false
+        updateConnectionStatus()
+        return authRepository.shouldAutoLogin()
     }
 
-    /**
-     * Limpiar Remember Me al hacer logout
-     */
-    fun clearRememberMeOnLogout() {
-        authRepository.clearRememberMePreferences()
-        Log.d("AuthViewModel", "Remember Me preferences cleared on logout")
+    fun refreshAutoLoginSession() {
+        val email = authRepository.getSavedEmail() ?: return
+        authRepository.saveRememberMePreferences(email, true)
     }
 
-    /**
-     * Sign out del usuario
-     */
     fun signOut() {
         auth.signOut()
-        clearRememberMeOnLogout()
+        authRepository.clearRememberMePreferences()
         authRepository.clearCredentials()
-        Log.d("AuthViewModel", "User signed out and Remember Me cleared")
+        _savedEmail.value = null
+        Log.d("AuthViewModel", "User signed out and data cleared")
     }
 }

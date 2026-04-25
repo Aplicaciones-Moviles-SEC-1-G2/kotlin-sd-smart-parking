@@ -8,58 +8,52 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Business
+import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.filled.WifiOff
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
-import com.example.sd_smart_parking_app.data.model.ParkingConfig
-import com.example.sd_smart_parking_app.data.model.ParkingSpot
-import com.example.sd_smart_parking_app.data.repository.ParkingRepository
 import com.example.sd_smart_parking_app.ui.components.FloorCard
 import com.example.sd_smart_parking_app.ui.theme.*
-import kotlinx.coroutines.delay
+import com.example.sd_smart_parking_app.utils.NetworkMonitor
 import com.example.sd_smart_parking_app.viewmodel.NotificationViewModel
 import com.example.sd_smart_parking_app.viewmodel.SharedDetailsViewModel
-import androidx.compose.material3.Button
-import java.text.SimpleDateFormat
-import java.util.*
-import androidx.compose.runtime.collectAsState
 
 @Composable
 fun DetailsScreen(
     modifier: Modifier = Modifier
 ) {
+    val context = LocalContext.current
     val viewModel = remember { SharedDetailsViewModel.getInstance() }
+    val networkMonitor = remember { NetworkMonitor(context) }
+    val isOnline by networkMonitor.networkStateFlow.collectAsState(initial = networkMonitor.isOnline())
+
     LaunchedEffect(Unit) {
         viewModel.initializeIfNeeded()
     }
+
     val detailsState by viewModel.detailsState.collectAsState()
-    val context = LocalContext.current
     val notificationViewModel = remember { NotificationViewModel(context = context) }
 
-    // Tracks estado anterior de spots para detectar cambios
     var previousSpotsAvailability by remember { mutableStateOf<List<Boolean>>(emptyList()) }
 
     LaunchedEffect(detailsState.parkingSpots) {
         if (detailsState.parkingSpots.isNotEmpty()) {
             val currentAvailability = detailsState.parkingSpots.map { it.isAvailable }
-
-            // Solo comparar si ya teníamos un estado anterior
             if (previousSpotsAvailability.isNotEmpty()) {
                 notificationViewModel.checkAndNotifyNewSpots(
                     previousSpots = previousSpotsAvailability,
                     currentSpots = currentAvailability
                 )
             }
-
             previousSpotsAvailability = currentAvailability
         }
     }
@@ -95,31 +89,67 @@ fun DetailsScreen(
                 }
 
                 Surface(
-                    modifier = Modifier.size(40.dp),
+                    modifier = Modifier
+                        .size(40.dp)
+                        .alpha(if (isOnline) 1f else 0.4f),
                     shape = CircleShape,
                     color = White,
-                    shadowElevation = 2.dp,
-                    onClick = {
-                        viewModel.refreshData()
-                    }
+                    shadowElevation = if (isOnline) 2.dp else 0.dp,
+                    onClick = { if (isOnline) viewModel.refreshData() }
                 ) {
                     Box(contentAlignment = Alignment.Center) {
                         Icon(
                             imageVector = Icons.Default.Refresh,
                             contentDescription = "Refresh",
                             modifier = Modifier.size(20.dp),
-                            tint = Color.Black
+                            tint = if (isOnline) Color.Black else Color.Gray
                         )
                     }
                 }
             }
 
-            Spacer(modifier = Modifier.height(Spacing.md))
+            // Offline banner
+            if (!isOnline) {
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = CardDefaults.cardColors(containerColor = ErrorRed.copy(alpha = 0.08f)),
+                    shape = RoundedCornerShape(CornerRadius.lg),
+                    border = androidx.compose.foundation.BorderStroke(1.dp, ErrorRed.copy(alpha = 0.3f))
+                ) {
+                    Row(
+                        modifier = Modifier.padding(Spacing.md),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.WifiOff,
+                            contentDescription = null,
+                            tint = ErrorRed,
+                            modifier = Modifier.size(20.dp)
+                        )
+                        Spacer(modifier = Modifier.width(Spacing.sm))
+                        Column {
+                            Text(
+                                text = "Offline mode",
+                                style = Typography.bodyMedium.copy(
+                                    fontWeight = FontWeight.Bold,
+                                    color = ErrorRed
+                                )
+                            )
+                            if (detailsState.lastUpdate.isNotEmpty()) {
+                                Text(
+                                    text = "Showing data from ${detailsState.lastUpdate}",
+                                    style = Typography.bodySmall.copy(color = ErrorRed.copy(alpha = 0.8f))
+                                )
+                            }
+                        }
+                    }
+                }
+                Spacer(modifier = Modifier.height(Spacing.md))
+            }
 
-            // Card de estado del sistema
+            // System status card
             Card(
-                modifier = Modifier
-                    .fillMaxWidth(),
+                modifier = Modifier.fillMaxWidth(),
                 colors = CardDefaults.cardColors(containerColor = SuccessGreen.copy(alpha = 0.05f)),
                 shape = RoundedCornerShape(CornerRadius.lg),
                 border = androidx.compose.foundation.BorderStroke(1.dp, SuccessGreen.copy(alpha = 0.2f))
@@ -137,7 +167,10 @@ fun DetailsScreen(
                     Column {
                         Text(
                             text = "System Operational",
-                            style = Typography.bodyLarge.copy(fontWeight = FontWeight.Bold, color = Color(0xFF1B5E20))
+                            style = Typography.bodyLarge.copy(
+                                fontWeight = FontWeight.Bold,
+                                color = Color(0xFF1B5E20)
+                            )
                         )
                         Text(
                             text = "Auto-update active",
@@ -149,7 +182,7 @@ fun DetailsScreen(
 
             Spacer(modifier = Modifier.height(Spacing.md))
 
-            // Card de resumen (Total, Available, Occupied)
+            // Summary card
             Card(
                 modifier = Modifier.fillMaxWidth(),
                 colors = CardDefaults.cardColors(containerColor = PrimaryYellow),
@@ -170,7 +203,7 @@ fun DetailsScreen(
 
             Spacer(modifier = Modifier.height(Spacing.lg))
 
-            // Card de distribución por piso
+            // Floor distribution header
             Row(
                 verticalAlignment = Alignment.CenterVertically,
                 modifier = Modifier.padding(bottom = Spacing.md)
@@ -187,10 +220,8 @@ fun DetailsScreen(
                 )
             }
 
-            // Lista de pisos
-            Column(
-                verticalArrangement = Arrangement.spacedBy(Spacing.md)
-            ) {
+            // Floor list
+            Column(verticalArrangement = Arrangement.spacedBy(Spacing.md)) {
                 detailsState.floorStates.forEach { floor ->
                     FloorCard(
                         floorNumber = floor.floorNumber,
@@ -204,16 +235,14 @@ fun DetailsScreen(
 
             Spacer(modifier = Modifier.height(Spacing.lg))
 
-            // Card de cola de entrada
+            // Entry queue card
             Card(
                 modifier = Modifier.fillMaxWidth(),
                 colors = CardDefaults.cardColors(containerColor = QueueBackground),
                 shape = RoundedCornerShape(CornerRadius.lg),
                 border = androidx.compose.foundation.BorderStroke(1.dp, QueueBorder)
             ) {
-                Column(
-                    modifier = Modifier.padding(Spacing.lg)
-                ) {
+                Column(modifier = Modifier.padding(Spacing.lg)) {
                     Text(
                         text = "Entry Queue",
                         style = Typography.headlineSmall.copy(

@@ -1,7 +1,9 @@
 package com.example.sd_smart_parking_app.ui.screens.login
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -17,6 +19,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Fingerprint
+import androidx.compose.material.icons.filled.WifiOff
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CheckboxDefaults
 import androidx.compose.material3.Icon
@@ -34,6 +37,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
@@ -55,7 +59,6 @@ import com.example.sd_smart_parking_app.ui.theme.Spacing
 import com.example.sd_smart_parking_app.ui.theme.Typography
 import com.example.sd_smart_parking_app.ui.theme.ErrorRed
 import com.example.sd_smart_parking_app.viewmodel.AuthViewModel
-import kotlinx.coroutines.delay
 
 @Composable
 fun LoginScreen(
@@ -65,19 +68,25 @@ fun LoginScreen(
     viewModel: AuthViewModel = viewModel()
 ) {
     val savedEmail by viewModel.savedEmail.collectAsState()
+    val isOffline by viewModel.isOffline.collectAsState()
+    
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
     var rememberMe by remember { mutableStateOf(false) }
 
-    // Al cargar la pantalla, verificar auto-login
+    // Al cargar la pantalla, verificar preferencias de "Remember Me"
     LaunchedEffect(Unit) {
-        // Verificar si debe hacer auto-login
-        if (viewModel.checkAndAutoLogin()) {
-            delay(500)
-            val preferences = viewModel.getRememberMePreferences()
-            onLoginSuccess(preferences.savedEmail ?: "auto_login_user", "remembered_session")
+        val preferences = viewModel.getRememberMePreferences()
+        if (preferences.isRememberMeEnabled && preferences.savedEmail != null) {
+            email = preferences.savedEmail
+            rememberMe = true
+            
+            // Auto-login: refresh the 30-day session timer on each successful entry
+            if (viewModel.checkAndAutoLogin()) {
+                viewModel.refreshAutoLoginSession()
+                onLoginSuccess(email, "auto_login")
+            }
         } else if (savedEmail != null) {
-            // Si no hay auto-login, pero hay email guardado, lo autocompletamos
             email = savedEmail!!
             rememberMe = false
         }
@@ -88,7 +97,9 @@ fun LoginScreen(
     val context = LocalContext.current
 
     val isFormValid = email.isNotBlank() && password.isNotBlank()
-    val hasBiometricsEnabled = savedEmail != null
+    
+    // Biometría disponible si hay credenciales guardadas, independientemente de Remember Me
+    val canUseBiometrics = savedEmail != null
 
     Scaffold(
         modifier = modifier.fillMaxSize(),
@@ -104,6 +115,27 @@ fun LoginScreen(
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center
         ) {
+            // Offline Warning
+            if (isOffline) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .background(ErrorRed.copy(alpha = 0.1f), RoundedCornerShape(CornerRadius.sm))
+                        .padding(Spacing.sm)
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(Icons.Default.WifiOff, contentDescription = null, tint = ErrorRed)
+                        Spacer(modifier = Modifier.size(Spacing.xs))
+                        Text(
+                            text = "Offline mode. Using locally saved credentials.",
+                            style = Typography.bodySmall,
+                            color = ErrorRed
+                        )
+                    }
+                }
+                Spacer(modifier = Modifier.height(Spacing.md))
+            }
+
             // Header
             Text(
                 text = "SD Building Parking",
@@ -167,7 +199,7 @@ fun LoginScreen(
                 )
             }
 
-            // Remember Me Checkbox - NUEVA FEATURE
+            // Remember Me Checkbox
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -176,7 +208,10 @@ fun LoginScreen(
             ) {
                 Checkbox(
                     checked = rememberMe,
-                    onCheckedChange = { rememberMe = it },
+                    onCheckedChange = { 
+                        rememberMe = it
+                        viewModel.setRememberMe(email, it)
+                    },
                     enabled = !isLoading,
                     colors = CheckboxDefaults.colors(
                         checkedColor = NavigationBlue,
@@ -196,7 +231,8 @@ fun LoginScreen(
                     text = errorMessage!!,
                     color = ErrorRed,
                     style = Typography.bodySmall,
-                    modifier = Modifier.padding(top = Spacing.md)
+                    modifier = Modifier.padding(top = Spacing.md),
+                    textAlign = TextAlign.Center
                 )
             }
 
@@ -207,14 +243,10 @@ fun LoginScreen(
                 text = if (isLoading) "Signing in..." else "Log In",
                 onClick = {
                     if (isFormValid && !isLoading) {
-                        // Si el usuario marcó Remember Me, guardar preferencias
-                        if (rememberMe) {
-                            viewModel.setRememberMe(email, true)
-                        }
-
+                        viewModel.setRememberMe(email, rememberMe)
                         viewModel.loginWithEmail(email, password) {
                             viewModel.logLoginMethod("email")
-                            onLoginSuccess(email, "password_hidden")
+                            onLoginSuccess(email, "manual")
                         }
                     }
                 },
@@ -224,14 +256,14 @@ fun LoginScreen(
             Spacer(modifier = Modifier.height(Spacing.md))
 
             // Biometric Section
-            if (hasBiometricsEnabled) {
+            if (canUseBiometrics) {
                 IconButton(
                     onClick = {
                         val activity = context as? FragmentActivity
                         if (activity != null) {
                             viewModel.loginWithBiometrics(activity) {
                                 viewModel.logLoginMethod("biometric")
-                                onLoginSuccess(savedEmail ?: "biometric_user", "biometric_token")
+                                onLoginSuccess(savedEmail ?: email, "biometric")
                             }
                         }
                     },
@@ -247,7 +279,7 @@ fun LoginScreen(
                 }
             } else {
                 Text(
-                    text = "Log in manually to activate biometric",
+                    text = "Sign in manually first to enable biometric authentication",
                     style = Typography.bodySmall,
                     color = MediumGray,
                     textAlign = TextAlign.Center,
@@ -284,20 +316,9 @@ fun LoginScreen(
                     text = "Register",
                     style = Typography.labelLarge,
                     color = NavigationBlue,
-                    modifier = Modifier.clickable(enabled = !isLoading) { onRegisterClick() }
+                    modifier = Modifier.clickable(enabled = !isLoading && !isOffline) { onRegisterClick() }
                 )
             }
         }
-    }
-}
-
-@Preview(showBackground = true)
-@Composable
-fun LoginScreenPreview() {
-    SmartParkingTheme {
-        LoginScreen(
-            onLoginSuccess = { _, _ -> },
-            onRegisterClick = {}
-        )
     }
 }
