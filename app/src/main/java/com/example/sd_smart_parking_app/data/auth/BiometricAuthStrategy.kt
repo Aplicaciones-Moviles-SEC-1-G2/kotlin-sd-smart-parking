@@ -33,11 +33,11 @@ class BiometricAuthStrategy(
                                 if (task.isSuccessful) {
                                     onResult(true, null)
                                 } else {
-                                    onResult(false, task.exception?.localizedMessage ?: "Error en la autenticación con Firebase")
+                                    onResult(false, task.exception?.localizedMessage ?: "Firebase authentication error")
                                 }
                             }
                     } else {
-                        onResult(false, "Inicia sesión manual para activar biometría")
+                        onResult(false, "Please sign in manually first to enable biometric login")
                     }
                 }
 
@@ -52,9 +52,9 @@ class BiometricAuthStrategy(
             })
 
         val promptInfo = BiometricPrompt.PromptInfo.Builder()
-            .setTitle("Acceso SD Smart Parking")
-            .setSubtitle("Usa tu huella para entrar")
-            .setNegativeButtonText("Cancelar")
+            .setTitle("SD Smart Parking Access")
+            .setSubtitle("Use your fingerprint to sign in")
+            .setNegativeButtonText("Cancel")
             .build()
 
         biometricPrompt.authenticate(promptInfo)
