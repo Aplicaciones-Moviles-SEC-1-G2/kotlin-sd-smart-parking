@@ -8,6 +8,7 @@ import com.example.sd_smart_parking_app.data.repository.ParkingRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.Dispatchers
 import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.Date
@@ -103,29 +104,31 @@ class SharedDetailsViewModel(
     }
 
     private fun updateFloorStates() {
-        val config = _detailsState.value.parkingConfig
-        val spots = _detailsState.value.parkingSpots
+        viewModelScope.launch(Dispatchers.Default) {
+            val config = _detailsState.value.parkingConfig
+            val spots = _detailsState.value.parkingSpots
 
-        val newFloorStates = (1..config.numberOfFloors).map { floorNum ->
-            val spotsInFloor = spots.filter { it.floor == floorNum }
-            val floorTotal = spotsInFloor.size
-            val floorAvailable = spotsInFloor.count { it.isAvailable }
-            val floorPercentage = if (floorTotal > 0) (floorAvailable * 100) / floorTotal else 0
+            val newFloorStates = (1..config.numberOfFloors).map { floorNum ->
+                val spotsInFloor = spots.filter { it.floor == floorNum }
+                val floorTotal = spotsInFloor.size
+                val floorAvailable = spotsInFloor.count { it.isAvailable }
+                val floorPercentage = if (floorTotal > 0) (floorAvailable * 100) / floorTotal else 0
 
-            FloorState(
-                floorNumber = floorNum,
-                availableSpots = floorAvailable,
-                totalSpots = floorTotal,
-                availabilityPercentage = floorPercentage,
-                availabilityStatus = when {
-                    floorPercentage > 60 -> "High"
-                    floorPercentage > 30 -> "Medium"
-                    else -> "Low"
-                }
-            )
+                FloorState(
+                    floorNumber = floorNum,
+                    availableSpots = floorAvailable,
+                    totalSpots = floorTotal,
+                    availabilityPercentage = floorPercentage,
+                    availabilityStatus = when {
+                        floorPercentage > 60 -> "High"
+                        floorPercentage > 30 -> "Medium"
+                        else -> "Low"
+                    }
+                )
+            }
+
+            _detailsState.value = _detailsState.value.copy(floorStates = newFloorStates)
         }
-
-        _detailsState.value = _detailsState.value.copy(floorStates = newFloorStates)
     }
 
     fun refreshData() {
