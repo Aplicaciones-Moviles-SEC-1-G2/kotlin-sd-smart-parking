@@ -34,7 +34,8 @@ data class UserProfile(
     var phone: String = "",
     var role: String = "driver",
     var cars: List<UserCar> = emptyList(),
-    var createdAt: Timestamp? = null
+    var createdAt: Timestamp? = null,
+    var photoURL: String = ""
 )
 
 data class Floor(

@@ -89,4 +89,10 @@ dependencies {
 
     // Gson para parseo JSON
     implementation("com.google.code.gson:gson:2.10.1")
+
+    // Coil para caché de imágenes
+    implementation("io.coil-kt:coil-compose:2.5.0")
+
+    // Firebase Storage
+    implementation("com.google.firebase:firebase-storage")
 }

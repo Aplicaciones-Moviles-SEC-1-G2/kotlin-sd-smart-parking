@@ -10,6 +10,8 @@ import com.google.firebase.firestore.DocumentSnapshot
 import com.google.firebase.firestore.QuerySnapshot
 import com.google.firebase.firestore.Source
 import com.google.firebase.firestore.firestore
+import android.net.Uri
+import com.google.firebase.storage.FirebaseStorage
 
 class ParkingRepository private constructor(private val appContext: Context? = null) {
     private val db = Firebase.firestore
@@ -100,5 +102,31 @@ class ParkingRepository private constructor(private val appContext: Context? = n
 
     fun logout() {
         auth.signOut()
+    }
+
+    fun uploadProfilePhoto(
+        uid: String,
+        photoUri: Uri,
+        onSuccess: (String) -> Unit,
+        onError: (Exception) -> Unit
+    ) {
+        val storage = FirebaseStorage.getInstance()
+        val photoRef = storage.reference.child("profile_photos/$uid.jpg")
+
+        photoRef.putFile(photoUri)
+            .addOnSuccessListener {
+                photoRef.downloadUrl
+                    .addOnSuccessListener { downloadUri ->
+                        onSuccess(downloadUri.toString())
+                    }
+                    .addOnFailureListener { e -> onError(e) }
+            }
+            .addOnFailureListener { e -> onError(e) }
+    }
+
+    fun updateUserPhotoURL(uid: String, photoURL: String, onComplete: (Boolean) -> Unit) {
+        db.collection("users").document(uid)
+            .update("photoURL", photoURL)
+            .addOnCompleteListener { task -> onComplete(task.isSuccessful) }
     }
 }
