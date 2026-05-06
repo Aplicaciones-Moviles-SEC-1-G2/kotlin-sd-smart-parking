@@ -1,6 +1,7 @@
 package com.example.sd_smart_parking_app.data.repository
 
 import android.util.Log
+import android.util.LruCache
 import com.example.sd_smart_parking_app.BuildConfig
 import com.example.sd_smart_parking_app.data.model.OccupancyHistory
 import com.example.sd_smart_parking_app.data.model.OccupancyPrediction
@@ -31,19 +32,28 @@ class OccupancyRepository private constructor() {
         .build()
 
     // -------------------------------------------------------------------------
-    // Caché de predicciones
+    // LruCache de predicciones
+    // maxSize = 24 (una entrada por cada hora del día como máximo)
+    // Clave: hora del día (0-23)
+    // Valor: Par de (OccupancyPrediction, timestamp de cuando fue cacheada)
     // -------------------------------------------------------------------------
-    private var cachedPrediction: OccupancyPrediction? = null
-    private var cacheTimestamp: Long = 0
-    private var cachedHour: Int = -1
+    private val predictionCache = LruCache<Int, Pair<OccupancyPrediction, Long>>(24)
     private val cacheDurationMs = 30 * 60 * 1000L // 30 minutos
 
     private fun isCacheValid(targetHour: Int): Boolean {
+        val cached = predictionCache.get(targetHour) ?: return false
         val now = System.currentTimeMillis()
-        val isSameHour = cachedHour == targetHour
-        val isNotExpired = (now - cacheTimestamp) < cacheDurationMs
-        val hasData = cachedPrediction != null
-        return hasData && isSameHour && isNotExpired
+        val isNotExpired = (now - cached.second) < cacheDurationMs
+        return isNotExpired
+    }
+
+    private fun getCachedPrediction(targetHour: Int): OccupancyPrediction? {
+        return predictionCache.get(targetHour)?.first
+    }
+
+    private fun savePredictionToCache(targetHour: Int, prediction: OccupancyPrediction) {
+        predictionCache.put(targetHour, Pair(prediction, System.currentTimeMillis()))
+        Log.d("OccupancyRepository", "Cache updated for hour $targetHour — cache size: ${predictionCache.size()}/${predictionCache.maxSize()}")
     }
 
     // -------------------------------------------------------------------------
@@ -210,10 +220,11 @@ class OccupancyRepository private constructor() {
     suspend fun predictWithAI(targetHour: Int): Result<OccupancyPrediction> {
         return try {
 
-            // Verificar si hay caché válido
+            // Verificar si hay caché válido en el LruCache
             if (isCacheValid(targetHour)) {
-                Log.d("OccupancyRepository", "Cache hit — returning cached prediction for hour $targetHour")
-                return Result.success(cachedPrediction!!)
+                val cached = getCachedPrediction(targetHour)!!
+                Log.d("OccupancyRepository", "Cache hit — returning LruCache prediction for hour $targetHour")
+                return Result.success(cached)
             }
 
             val recentData = getRecentOccupancyData(30).getOrNull() ?: emptyList()
@@ -340,11 +351,8 @@ class OccupancyRepository private constructor() {
                 reasoning = predictionJson.optString("reasoning", "")
             )
 
-            // Guardar en caché
-            cachedPrediction = prediction
-            cacheTimestamp = System.currentTimeMillis()
-            cachedHour = targetHour
-            Log.d("OccupancyRepository", "Cache updated for hour $targetHour")
+            // Guardar en LruCache
+            savePredictionToCache(targetHour, prediction)
 
             Log.d("OccupancyRepository", "AI Prediction for hour $targetHour: ${prediction.predictedOccupancy}%")
             Result.success(prediction)
