@@ -35,6 +35,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
@@ -47,10 +48,11 @@ import androidx.core.content.FileProvider
 import androidx.lifecycle.viewmodel.compose.viewModel
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
+import com.example.sd_smart_parking_app.data.NetworkMonitor
+import com.example.sd_smart_parking_app.ui.components.OfflineBanner
 import com.example.sd_smart_parking_app.ui.theme.BackgroundLightGray
 import com.example.sd_smart_parking_app.ui.theme.BackgroundWhite
 import com.example.sd_smart_parking_app.ui.theme.CornerRadius
-import com.example.sd_smart_parking_app.ui.theme.DarkText
 import com.example.sd_smart_parking_app.ui.theme.Elevation
 import com.example.sd_smart_parking_app.ui.theme.ErrorRed
 import com.example.sd_smart_parking_app.ui.theme.MediumGray
@@ -71,16 +73,21 @@ fun ProfileScreen(
     authViewModel: AuthViewModel = viewModel(),
     onNavigateToLogin: () -> Unit
 ) {
+    val context = LocalContext.current
+    val networkMonitor = remember { NetworkMonitor(context) }
+    val isConnected by networkMonitor.isConnected.collectAsState()
+
     val userProfile by viewModel.userProfile.collectAsState()
     val isLoading by viewModel.isLoading.collectAsState()
     val photoUploadState by viewModel.photoUploadState.collectAsState()
     var showLogoutDialog by remember { mutableStateOf(false) }
-    val context = LocalContext.current
 
-    // URI temporal para la foto tomada con la cámara
+    DisposableEffect(Unit) {
+        onDispose { networkMonitor.unregister() }
+    }
+
     var tempPhotoUri by remember { mutableStateOf<Uri?>(null) }
 
-    // Launcher para tomar foto con la cámara
     val cameraLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.TakePicture()
     ) { success ->
@@ -91,7 +98,6 @@ fun ProfileScreen(
         }
     }
 
-    // Launcher para solicitar permiso de cámara
     val permissionLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestPermission()
     ) { isGranted ->
@@ -107,8 +113,8 @@ fun ProfileScreen(
         }
     }
 
-    // Función para abrir la cámara
     fun openCamera() {
+        if (!isConnected) return
         when {
             ContextCompat.checkSelfPermission(
                 context,
@@ -129,7 +135,6 @@ fun ProfileScreen(
         }
     }
 
-    // Dialog de confirmación de logout
     if (showLogoutDialog) {
         AlertDialog(
             onDismissRequest = { showLogoutDialog = false },
@@ -158,9 +163,7 @@ fun ProfileScreen(
         )
     }
 
-    Scaffold(
-        modifier = modifier.fillMaxSize()
-    ) { paddingValues ->
+    Scaffold(modifier = modifier.fillMaxSize()) { paddingValues ->
         if (isLoading) {
             Box(
                 modifier = Modifier.fillMaxSize(),
@@ -176,7 +179,7 @@ fun ProfileScreen(
                     .padding(paddingValues)
                     .verticalScroll(rememberScrollState())
             ) {
-                // Header con botón de logout
+                // Header
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -200,6 +203,15 @@ fun ProfileScreen(
                             modifier = Modifier.size(24.dp)
                         )
                     }
+                }
+
+                // Offline banner
+                if (!isConnected) {
+                    OfflineBanner(
+                        message = "You're offline. Your profile info is shown from local cache.",
+                        subMessage = "Photo upload and profile sync are disabled until connection is restored 📵",
+                        modifier = Modifier.padding(horizontal = Spacing.lg, vertical = Spacing.sm)
+                    )
                 }
 
                 // Card de perfil del usuario
@@ -229,11 +241,12 @@ fun ProfileScreen(
                             ) {
                                 // Avatar con foto de perfil usando Coil
                                 Box(
-                                    modifier = Modifier.size(56.dp),
+                                    modifier = Modifier
+                                        .size(56.dp)
+                                        .alpha(if (isConnected) 1f else 0.6f),
                                     contentAlignment = Alignment.Center
                                 ) {
                                     if (userProfile.photoURL.isNotEmpty()) {
-                                        // Mostrar foto de perfil con Coil
                                         AsyncImage(
                                             model = ImageRequest.Builder(context)
                                                 .data(userProfile.photoURL)
@@ -243,19 +256,15 @@ fun ProfileScreen(
                                             modifier = Modifier
                                                 .size(56.dp)
                                                 .clip(CircleShape)
-                                                .clickable { openCamera() },
+                                                .clickable { if (isConnected) openCamera() },
                                             contentScale = ContentScale.Crop
                                         )
                                     } else {
-                                        // Mostrar emoji por defecto si no hay foto
                                         Box(
                                             modifier = Modifier
                                                 .size(56.dp)
-                                                .background(
-                                                    color = White,
-                                                    shape = CircleShape
-                                                )
-                                                .clickable { openCamera() },
+                                                .background(color = White, shape = CircleShape)
+                                                .clickable { if (isConnected) openCamera() },
                                             contentAlignment = Alignment.Center
                                         ) {
                                             if (photoUploadState is PhotoUploadState.Loading) {
@@ -270,15 +279,12 @@ fun ProfileScreen(
                                         }
                                     }
 
-                                    // Icono de cámara superpuesto
-                                    if (photoUploadState !is PhotoUploadState.Loading) {
+                                    // Icono de cámara — solo visible si hay conexión
+                                    if (isConnected && photoUploadState !is PhotoUploadState.Loading) {
                                         Box(
                                             modifier = Modifier
                                                 .size(20.dp)
-                                                .background(
-                                                    color = MediumGray,
-                                                    shape = CircleShape
-                                                )
+                                                .background(color = MediumGray, shape = CircleShape)
                                                 .align(Alignment.BottomEnd),
                                             contentAlignment = Alignment.Center
                                         ) {
@@ -302,7 +308,6 @@ fun ProfileScreen(
                                         text = userProfile.email.ifEmpty { "user@email.com" },
                                         style = Typography.bodySmall
                                     )
-                                    // Mensaje de estado de subida
                                     when (photoUploadState) {
                                         is PhotoUploadState.Success -> Text(
                                             text = "✅ Photo updated!",
@@ -319,12 +324,15 @@ fun ProfileScreen(
                                 }
                             }
 
-                            IconButton(onClick = { }) {
+                            IconButton(
+                                onClick = { },
+                                enabled = isConnected,
+                                modifier = Modifier.alpha(if (isConnected) 1f else 0.4f)
+                            ) {
                                 Text("✏️", fontSize = 20.sp)
                             }
                         }
 
-                        // Estadísticas
                         Row(
                             modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.SpaceEvenly
@@ -336,7 +344,7 @@ fun ProfileScreen(
                     }
                 }
 
-                // Sección Account Information
+                // Account Information
                 Column(
                     modifier = Modifier.padding(horizontal = Spacing.lg, vertical = Spacing.lg)
                 ) {
@@ -355,7 +363,7 @@ fun ProfileScreen(
                     AccountCard(icon = "🚗", label = "Vehicle", value = vehicleInfo)
                 }
 
-                // Sección Preferences
+                // Preferences
                 Column(
                     modifier = Modifier.padding(horizontal = Spacing.lg, vertical = Spacing.lg)
                 ) {

@@ -12,13 +12,18 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.example.sd_smart_parking_app.data.NetworkMonitor
 import com.example.sd_smart_parking_app.ui.components.HistoryItem
+import com.example.sd_smart_parking_app.ui.components.OfflineBanner
 import com.example.sd_smart_parking_app.ui.components.ParkingStatus
 import com.example.sd_smart_parking_app.ui.theme.BackgroundWhite
 import com.example.sd_smart_parking_app.ui.theme.NavigationBlue
@@ -32,7 +37,14 @@ fun HistoryScreen(
     modifier: Modifier = Modifier,
     viewModel: HistoryViewModel = viewModel()
 ) {
+    val context = LocalContext.current
+    val networkMonitor = remember { NetworkMonitor(context) }
+    val isConnected by networkMonitor.isConnected.collectAsState()
     val uiState by viewModel.uiState.collectAsState()
+
+    DisposableEffect(Unit) {
+        onDispose { networkMonitor.unregister() }
+    }
 
     Scaffold(
         modifier = modifier.fillMaxSize()
@@ -48,9 +60,19 @@ fun HistoryScreen(
             Column(modifier = Modifier.padding(Spacing.lg)) {
                 Text(text = "Parking History", style = Typography.headlineLarge)
                 Text(
-                    text = "Your last 10 parking records",
+                    text = if (isConnected) "Your last 10 parking records"
+                    else "Your last 10 parking records (offline)",
                     style = Typography.bodySmall,
                     modifier = Modifier.padding(top = Spacing.xs)
+                )
+            }
+
+            // Offline banner
+            if (!isConnected) {
+                OfflineBanner(
+                    message = "You're offline. Your parking history may not reflect the most recent activity.",
+                    subMessage = "Showing records loaded before losing connection 📋",
+                    modifier = Modifier.padding(horizontal = Spacing.lg, vertical = Spacing.sm)
                 )
             }
 
@@ -63,15 +85,24 @@ fun HistoryScreen(
                         CircularProgressIndicator(color = NavigationBlue)
                     }
                 }
-                uiState.error != null -> {
+                uiState.error != null && uiState.records.isEmpty() -> {
                     Box(
                         modifier = Modifier.fillMaxSize(),
                         contentAlignment = Alignment.Center
                     ) {
-                        Text(
-                            text = "Error loading history: ${uiState.error}",
-                            style = Typography.bodyMedium
-                        )
+                        Column(
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.spacedBy(Spacing.sm)
+                        ) {
+                            Text(text = "🤖", style = Typography.displaySmall)
+                            Text(
+                                text = if (!isConnected)
+                                    "No cached history available.\nConnect to the internet to load your records."
+                                else
+                                    "Error loading history: ${uiState.error}",
+                                style = Typography.bodyMedium
+                            )
+                        }
                     }
                 }
                 uiState.records.isEmpty() -> {
