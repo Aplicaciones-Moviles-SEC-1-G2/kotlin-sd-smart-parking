@@ -1,7 +1,6 @@
 package com.example.sd_smart_parking_app.ui.screens.details
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
@@ -10,7 +9,6 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Business
 import androidx.compose.material.icons.filled.Refresh
-import androidx.compose.material.icons.filled.WifiOff
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -21,9 +19,10 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import com.example.sd_smart_parking_app.data.NetworkMonitor
 import com.example.sd_smart_parking_app.ui.components.FloorCard
+import com.example.sd_smart_parking_app.ui.components.OfflineBanner
 import com.example.sd_smart_parking_app.ui.theme.*
-import com.example.sd_smart_parking_app.utils.NetworkMonitor
 import com.example.sd_smart_parking_app.viewmodel.NotificationViewModel
 import com.example.sd_smart_parking_app.viewmodel.SharedDetailsViewModel
 
@@ -34,7 +33,7 @@ fun DetailsScreen(
     val context = LocalContext.current
     val viewModel = remember { SharedDetailsViewModel.getInstance() }
     val networkMonitor = remember { NetworkMonitor(context) }
-    val isOnline by networkMonitor.networkStateFlow.collectAsState(initial = networkMonitor.isOnline())
+    val isConnected by networkMonitor.isConnected.collectAsState()
 
     LaunchedEffect(Unit) {
         viewModel.initializeIfNeeded()
@@ -44,6 +43,10 @@ fun DetailsScreen(
     val notificationViewModel = remember { NotificationViewModel(context = context) }
 
     var previousSpotsAvailability by remember { mutableStateOf<List<Boolean>>(emptyList()) }
+
+    DisposableEffect(Unit) {
+        onDispose { networkMonitor.unregister() }
+    }
 
     LaunchedEffect(detailsState.parkingSpots) {
         if (detailsState.parkingSpots.isNotEmpty()) {
@@ -83,7 +86,7 @@ fun DetailsScreen(
                         style = Typography.headlineLarge.copy(fontWeight = FontWeight.Bold)
                     )
                     Text(
-                        text = "Real-time availability",
+                        text = if (isConnected) "Real-time availability" else "Last known availability",
                         style = Typography.bodySmall.copy(color = MediumGray)
                     )
                 }
@@ -91,68 +94,49 @@ fun DetailsScreen(
                 Surface(
                     modifier = Modifier
                         .size(40.dp)
-                        .alpha(if (isOnline) 1f else 0.4f),
+                        .alpha(if (isConnected) 1f else 0.4f),
                     shape = CircleShape,
                     color = White,
-                    shadowElevation = if (isOnline) 2.dp else 0.dp,
-                    onClick = { if (isOnline) viewModel.refreshData() }
+                    shadowElevation = if (isConnected) 2.dp else 0.dp,
+                    onClick = { if (isConnected) viewModel.refreshData() }
                 ) {
                     Box(contentAlignment = Alignment.Center) {
                         Icon(
                             imageVector = Icons.Default.Refresh,
                             contentDescription = "Refresh",
                             modifier = Modifier.size(20.dp),
-                            tint = if (isOnline) Color.Black else Color.Gray
+                            tint = if (isConnected) Color.Black else Color.Gray
                         )
                     }
                 }
             }
 
             // Offline banner
-            if (!isOnline) {
-                Card(
-                    modifier = Modifier.fillMaxWidth(),
-                    colors = CardDefaults.cardColors(containerColor = ErrorRed.copy(alpha = 0.08f)),
-                    shape = RoundedCornerShape(CornerRadius.lg),
-                    border = androidx.compose.foundation.BorderStroke(1.dp, ErrorRed.copy(alpha = 0.3f))
-                ) {
-                    Row(
-                        modifier = Modifier.padding(Spacing.md),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.WifiOff,
-                            contentDescription = null,
-                            tint = ErrorRed,
-                            modifier = Modifier.size(20.dp)
-                        )
-                        Spacer(modifier = Modifier.width(Spacing.sm))
-                        Column {
-                            Text(
-                                text = "Offline mode",
-                                style = Typography.bodyMedium.copy(
-                                    fontWeight = FontWeight.Bold,
-                                    color = ErrorRed
-                                )
-                            )
-                            if (detailsState.lastUpdate.isNotEmpty()) {
-                                Text(
-                                    text = "Showing data from ${detailsState.lastUpdate}",
-                                    style = Typography.bodySmall.copy(color = ErrorRed.copy(alpha = 0.8f))
-                                )
-                            }
-                        }
-                    }
-                }
-                Spacer(modifier = Modifier.height(Spacing.md))
+            if (!isConnected) {
+                OfflineBanner(
+                    message = "Real-time floor updates are paused. You can still see the last known floor availability.",
+                    subMessage = if (detailsState.lastUpdate.isNotEmpty())
+                        "Last update: ${detailsState.lastUpdate}"
+                    else
+                        "Showing last available data",
+                    modifier = Modifier.padding(bottom = Spacing.md)
+                )
             }
 
             // System status card
             Card(
                 modifier = Modifier.fillMaxWidth(),
-                colors = CardDefaults.cardColors(containerColor = SuccessGreen.copy(alpha = 0.05f)),
+                colors = CardDefaults.cardColors(
+                    containerColor = if (isConnected)
+                        SuccessGreen.copy(alpha = 0.05f)
+                    else
+                        Color(0xFFFFF3E0)
+                ),
                 shape = RoundedCornerShape(CornerRadius.lg),
-                border = androidx.compose.foundation.BorderStroke(1.dp, SuccessGreen.copy(alpha = 0.2f))
+                border = androidx.compose.foundation.BorderStroke(
+                    1.dp,
+                    if (isConnected) SuccessGreen.copy(alpha = 0.2f) else Color(0xFFE65100).copy(alpha = 0.3f)
+                )
             ) {
                 Row(
                     modifier = Modifier.padding(Spacing.md),
@@ -161,20 +145,25 @@ fun DetailsScreen(
                     Box(
                         modifier = Modifier
                             .size(10.dp)
-                            .background(SuccessGreen, CircleShape)
+                            .background(
+                                if (isConnected) SuccessGreen else Color(0xFFE65100),
+                                CircleShape
+                            )
                     )
                     Spacer(modifier = Modifier.width(Spacing.md))
                     Column {
                         Text(
-                            text = "System Operational",
+                            text = if (isConnected) "System Operational" else "System Offline",
                             style = Typography.bodyLarge.copy(
                                 fontWeight = FontWeight.Bold,
-                                color = Color(0xFF1B5E20)
+                                color = if (isConnected) Color(0xFF1B5E20) else Color(0xFFE65100)
                             )
                         )
                         Text(
-                            text = "Auto-update active",
-                            style = Typography.bodySmall.copy(color = SuccessGreen)
+                            text = if (isConnected) "Auto-update active" else "Updates paused — reconnecting...",
+                            style = Typography.bodySmall.copy(
+                                color = if (isConnected) SuccessGreen else Color(0xFFE65100)
+                            )
                         )
                     }
                 }

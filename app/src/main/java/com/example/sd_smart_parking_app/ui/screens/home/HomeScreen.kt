@@ -10,33 +10,35 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.tooling.preview.Preview
-import com.example.sd_smart_parking_app.data.model.ParkingConfig
-import com.example.sd_smart_parking_app.data.model.ParkingSpot
-import com.example.sd_smart_parking_app.data.repository.ParkingRepository
-import com.example.sd_smart_parking_app.ui.components.ParkingCard
+import com.example.sd_smart_parking_app.data.NetworkMonitor
+import com.example.sd_smart_parking_app.data.model.Floor
+import com.example.sd_smart_parking_app.ui.components.FloorRecommendationCard
 import com.example.sd_smart_parking_app.ui.components.OccupancyPredictorCard
+import com.example.sd_smart_parking_app.ui.components.OfflineBanner
+import com.example.sd_smart_parking_app.ui.components.ParkingCard
+import com.example.sd_smart_parking_app.ui.components.WeatherCard
 import com.example.sd_smart_parking_app.ui.theme.BackgroundWhite
 import com.example.sd_smart_parking_app.ui.theme.SmartParkingTheme
 import com.example.sd_smart_parking_app.ui.theme.Spacing
 import com.example.sd_smart_parking_app.ui.theme.Typography
+import com.example.sd_smart_parking_app.viewmodel.FloorRecommendationViewModel
+import com.example.sd_smart_parking_app.viewmodel.OccupancyPredictorViewModel
+import com.example.sd_smart_parking_app.viewmodel.SharedDetailsViewModel
+import com.example.sd_smart_parking_app.viewmodel.WeatherViewModel
 import java.text.SimpleDateFormat
 import java.util.*
-import com.example.sd_smart_parking_app.viewmodel.WeatherViewModel
-import com.example.sd_smart_parking_app.ui.components.WeatherCard
-import androidx.compose.runtime.collectAsState
-import com.example.sd_smart_parking_app.viewmodel.FloorRecommendationViewModel
-import com.example.sd_smart_parking_app.ui.components.FloorRecommendationCard
-import com.example.sd_smart_parking_app.viewmodel.OccupancyPredictorViewModel
-import com.example.sd_smart_parking_app.data.model.Floor
-import kotlinx.coroutines.delay
-import com.example.sd_smart_parking_app.viewmodel.SharedDetailsViewModel
 
 @Composable
 fun HomeScreen(
     onNavigationClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val context = LocalContext.current
+    val networkMonitor = remember { NetworkMonitor(context) }
+    val isConnected by networkMonitor.isConnected.collectAsState()
+
     val sharedDetailsViewModel = remember { SharedDetailsViewModel.getInstance() }
     val detailsState by sharedDetailsViewModel.detailsState.collectAsState()
     LaunchedEffect(Unit) {
@@ -50,7 +52,10 @@ fun HomeScreen(
     val occupancyState by occupancyPredictorViewModel.uiState.collectAsState()
     var lastUpdate by remember { mutableStateOf("") }
 
-    // Actualizar recomendación cada vez que cambien los parkingSpots
+    DisposableEffect(Unit) {
+        onDispose { networkMonitor.unregister() }
+    }
+
     LaunchedEffect(detailsState.parkingSpots) {
         if (detailsState.parkingSpots.isNotEmpty() && detailsState.parkingConfig.numberOfFloors > 0) {
             val floors = (1..detailsState.parkingConfig.numberOfFloors).map { floorNum ->
@@ -58,7 +63,6 @@ fun HomeScreen(
                 val floorTotal = spotsInFloor.size
                 val floorAvailable = spotsInFloor.count { it.isAvailable }
                 val floorPercentage = if (floorTotal > 0) (floorAvailable * 100) / floorTotal else 0
-
                 Floor(
                     floorNumber = floorNum,
                     totalSpots = floorTotal,
@@ -74,7 +78,6 @@ fun HomeScreen(
             }
             floorRecommendationViewModel.updateRecommendation(floors)
 
-            // Guardar datos de ocupación actual para entrenar el modelo
             val totalSpotsForOccupancy = detailsState.parkingSpots.size
             val availableSpotsForOccupancy = detailsState.parkingSpots.count { it.isAvailable }
             val occupancyPercentage = if (totalSpotsForOccupancy > 0)
@@ -96,9 +99,7 @@ fun HomeScreen(
     val availabilityPercentage = if (totalSpots > 0) (availableSpots * 100) / totalSpots else 0
     val occupancyPercentageDisplay = if (totalSpots > 0) (occupiedSpots * 100) / totalSpots else 0
 
-    Scaffold(
-        modifier = modifier.fillMaxSize()
-    ) { paddingValues ->
+    Scaffold(modifier = modifier.fillMaxSize()) { paddingValues ->
         Column(
             modifier = Modifier
                 .fillMaxSize()
@@ -107,7 +108,15 @@ fun HomeScreen(
                 .padding(Spacing.lg)
                 .verticalScroll(rememberScrollState())
         ) {
-            // Tarjeta principal de información del parqueadero con datos reales
+            // Banner offline — solo visible cuando no hay conexión
+            if (!isConnected) {
+                OfflineBanner(
+                    message = "You lost your connection. Real-time parking updates are paused.",
+                    subMessage = "Showing last known availability — AI predictions still available from cache 🤖",
+                    modifier = Modifier.padding(bottom = Spacing.md)
+                )
+            }
+
             ParkingCard(
                 title = detailsState.parkingConfig.parkingName.ifEmpty { "Loading..." },
                 subtitle = "Andes University",
@@ -119,14 +128,12 @@ fun HomeScreen(
                 onNavigateClick = onNavigationClick
             )
 
-            // Occupancy Predictor Card - NUEVA FEATURE
             OccupancyPredictorCard(
                 prediction = occupancyState.currentPrediction,
                 isLoading = occupancyState.isLoading,
                 modifier = Modifier.padding(horizontal = Spacing.lg, vertical = Spacing.md)
             )
 
-            // Floor Recommendation Card
             FloorRecommendationCard(
                 recommendation = recommendationState.recommendation,
                 isLoading = recommendationState.isLoading,
@@ -134,7 +141,6 @@ fun HomeScreen(
                 modifier = Modifier.padding(horizontal = Spacing.lg, vertical = Spacing.md)
             )
 
-            // Weather Card
             WeatherCard(
                 weatherData = weatherState.weatherData,
                 recommendation = weatherState.recommendation,
@@ -145,10 +151,9 @@ fun HomeScreen(
                 modifier = Modifier.padding(horizontal = Spacing.lg, vertical = Spacing.md)
             )
 
-            // Timestamp de última actualización real
             if (lastUpdate.isNotEmpty()) {
                 Text(
-                    text = "Last update: $lastUpdate",
+                    text = if (isConnected) "Last update: $lastUpdate" else "⚠️ Last update: $lastUpdate (offline)",
                     style = Typography.bodySmall,
                     modifier = Modifier.padding(top = Spacing.md)
                 )
@@ -161,6 +166,6 @@ fun HomeScreen(
 @Composable
 fun HomeScreenPreview() {
     SmartParkingTheme {
-        HomeScreen( onNavigationClick = {} )
+        HomeScreen(onNavigationClick = {})
     }
 }
