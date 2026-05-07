@@ -8,6 +8,9 @@ import com.example.sd_smart_parking_app.data.model.OccupancyPrediction
 import com.example.sd_smart_parking_app.data.model.HourlyOccupancyStats
 import com.google.firebase.firestore.FirebaseFirestore
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.tasks.await
 import kotlinx.coroutines.withContext
 import okhttp3.MediaType.Companion.toMediaType
@@ -227,9 +230,46 @@ class OccupancyRepository private constructor() {
                 return Result.success(cached)
             }
 
-            val recentData = getRecentOccupancyData(30).getOrNull() ?: emptyList()
-            val hourlyStats = getHourlyOccupancyStats().getOrNull() ?: emptyList()
-            val arrivalStats = getVehicleArrivalStats()
+            // -------------------------------------------------------------------------
+            // MULTITHREADING: Dos corrutinas paralelas en Dispatchers.IO
+            // Corrutina 1: obtiene datos recientes de ocupación (parking_occupancy_history)
+            // Corrutina 2: obtiene estadísticas de llegada de vehículos (vehicleRecords)
+            // Ambas corren simultáneamente en hilos separados del pool de IO
+            // -------------------------------------------------------------------------
+            val recentData: List<OccupancyHistory>
+            val hourlyStats: List<HourlyOccupancyStats>
+            val arrivalStats: Map<Int, Int>
+
+            withContext(Dispatchers.IO) {
+                Log.d("OccupancyRepository", "Starting parallel Firebase queries on thread: ${Thread.currentThread().name}")
+
+                kotlinx.coroutines.coroutineScope {
+                    // Corrutina anidada 1 — consulta parking_occupancy_history en Dispatchers.IO
+                    val recentDataJob = async(Dispatchers.IO) {
+                        Log.d("OccupancyRepository", "Coroutine 1 (recentData) running on thread: ${Thread.currentThread().name}")
+                        getRecentOccupancyData(30).getOrNull() ?: emptyList<OccupancyHistory>()
+                    }
+
+                    // Corrutina anidada 2 — consulta vehicleRecords en Dispatchers.IO
+                    val arrivalStatsJob = async(Dispatchers.IO) {
+                        Log.d("OccupancyRepository", "Coroutine 2 (arrivalStats) running on thread: ${Thread.currentThread().name}")
+                        getVehicleArrivalStats()
+                    }
+
+                    // Corrutina anidada 3 — consulta hourly stats en Dispatchers.IO
+                    val hourlyStatsJob = async(Dispatchers.IO) {
+                        Log.d("OccupancyRepository", "Coroutine 3 (hourlyStats) running on thread: ${Thread.currentThread().name}")
+                        getHourlyOccupancyStats().getOrNull() ?: emptyList<HourlyOccupancyStats>()
+                    }
+
+                    Log.d("OccupancyRepository", "All parallel Firebase queries completed")
+
+                    recentData = recentDataJob.await()
+                    @Suppress("UNCHECKED_CAST")
+                    arrivalStats = arrivalStatsJob.await() as Map<Int, Int>
+                    hourlyStats = hourlyStatsJob.await()
+                }
+            }
 
             if (recentData.isEmpty() && hourlyStats.isEmpty()) {
                 return Result.failure(Exception("No hay datos históricos disponibles para la predicción"))
@@ -276,33 +316,33 @@ class OccupancyRepository private constructor() {
             val futureHoursStr = futureHours.joinToString(", ") { "${String.format("%02d", it)}:00" }
 
             val prompt = """
-                You are an AI assistant for a smart parking app at a university. Analyze the data and predict parking conditions.
+            You are an AI assistant for a smart parking app at a university. Analyze the data and predict parking conditions.
 
-                Current context:
-                - Current day: $dayName
-                - Current hour: ${String.format("%02d", currentHour)}:00
-                - Target hour for prediction: ${String.format("%02d", targetHour)}:00
-                - Available future hours to recommend (next 12 hours only): $futureHoursStr
+            Current context:
+            - Current day: $dayName
+            - Current hour: ${String.format("%02d", currentHour)}:00
+            - Target hour for prediction: ${String.format("%02d", targetHour)}:00
+            - Available future hours to recommend (next 12 hours only): $futureHoursStr
 
-                $occupancySummary
+            $occupancySummary
 
-                $arrivalSummary
+            $arrivalSummary
 
-                $recentSummary
+            $recentSummary
 
-                Based on this data:
-                1. Predict the AVAILABILITY percentage (available spots / total spots) for hour ${String.format("%02d", targetHour)}:00. Higher value means more spots available.
-                2. Recommend the BEST hour to park from the future hours list only ($futureHoursStr). Choose the hour with the HIGHEST expected availability that is NOT a peak arrival hour. If all future hours have similar availability, pick the earliest one.
+            Based on this data:
+            1. Predict the AVAILABILITY percentage (available spots / total spots) for hour ${String.format("%02d", targetHour)}:00. Higher value means more spots available.
+            2. Recommend the BEST hour to park from the future hours list only ($futureHoursStr). Choose the hour with the HIGHEST expected availability that is NOT a peak arrival hour. If all future hours have similar availability, pick the earliest one.
 
-                Respond ONLY with a valid JSON object, no explanation, no markdown, no extra text:
-                {
-                  "predictedOccupancy": <number 0-100, represents AVAILABILITY percentage, higher is better>,
-                  "confidence": <number 0-100>,
-                  "isBusy": <true if predictedOccupancy < 30>,
-                  "recommendedTime": "<HH:00 format, chosen from future hours only>",
-                  "reasoning": "<one short sentence explaining both the prediction and the recommendation>"
-                }
-            """.trimIndent()
+            Respond ONLY with a valid JSON object, no explanation, no markdown, no extra text:
+            {
+              "predictedOccupancy": <number 0-100, represents AVAILABILITY percentage, higher is better>,
+              "confidence": <number 0-100>,
+              "isBusy": <true if predictedOccupancy < 30>,
+              "recommendedTime": "<HH:00 format, chosen from future hours only>",
+              "reasoning": "<one short sentence explaining both the prediction and the recommendation>"
+            }
+        """.trimIndent()
 
             val requestBody = JSONObject().apply {
                 put("model", "claude-sonnet-4-20250514")
@@ -323,38 +363,48 @@ class OccupancyRepository private constructor() {
                 .header("content-type", "application/json")
                 .build()
 
-            val response = withContext(Dispatchers.IO) { httpClient.newCall(request).execute() }
-            val responseBody = response.body?.string()
-                ?: return Result.failure(Exception("Empty response from Claude API"))
+            // -------------------------------------------------------------------------
+            // MULTITHREADING: Llamada HTTP a Claude API en Dispatchers.IO
+            // y actualización del estado en Dispatchers.Main
+            // -------------------------------------------------------------------------
+            val prediction: OccupancyPrediction = withContext(Dispatchers.IO) {
+                Log.d("OccupancyRepository", "Calling Claude API on thread: ${Thread.currentThread().name}")
+                val response = httpClient.newCall(request).execute()
+                val responseBody = response.body?.string()
+                    ?: throw Exception("Empty response from Claude API")
 
-            if (!response.isSuccessful) {
-                Log.e("OccupancyRepository", "Claude API error: $responseBody")
-                return Result.failure(Exception("Claude API error: ${response.code}"))
+                if (!response.isSuccessful) {
+                    Log.e("OccupancyRepository", "Claude API error: $responseBody")
+                    throw Exception("Claude API error: ${response.code}")
+                }
+
+                val responseJson = JSONObject(responseBody)
+                val content = responseJson
+                    .getJSONArray("content")
+                    .getJSONObject(0)
+                    .getString("text")
+                    .trim()
+
+                Log.d("OccupancyRepository", "Claude response: $content")
+
+                val predictionJson = JSONObject(content)
+                OccupancyPrediction(
+                    hour = targetHour,
+                    predictedOccupancy = predictionJson.getDouble("predictedOccupancy").toFloat(),
+                    confidence = predictionJson.getDouble("confidence").toFloat(),
+                    isBusy = predictionJson.getBoolean("isBusy"),
+                    recommendedTime = predictionJson.getString("recommendedTime"),
+                    reasoning = predictionJson.optString("reasoning", "")
+                )
             }
 
-            val responseJson = JSONObject(responseBody)
-            val content = responseJson
-                .getJSONArray("content")
-                .getJSONObject(0)
-                .getString("text")
-                .trim()
+            // Guardar en caché y actualizar UI en Dispatchers.Main
+            withContext(Dispatchers.Main) {
+                Log.d("OccupancyRepository", "Updating cache on thread: ${Thread.currentThread().name}")
+                savePredictionToCache(targetHour, prediction)
+                Log.d("OccupancyRepository", "AI Prediction for hour $targetHour: ${prediction.predictedOccupancy}%")
+            }
 
-            Log.d("OccupancyRepository", "Claude response: $content")
-
-            val predictionJson = JSONObject(content)
-            val prediction = OccupancyPrediction(
-                hour = targetHour,
-                predictedOccupancy = predictionJson.getDouble("predictedOccupancy").toFloat(),
-                confidence = predictionJson.getDouble("confidence").toFloat(),
-                isBusy = predictionJson.getBoolean("isBusy"),
-                recommendedTime = predictionJson.getString("recommendedTime"),
-                reasoning = predictionJson.optString("reasoning", "")
-            )
-
-            // Guardar en LruCache
-            savePredictionToCache(targetHour, prediction)
-
-            Log.d("OccupancyRepository", "AI Prediction for hour $targetHour: ${prediction.predictedOccupancy}%")
             Result.success(prediction)
 
         } catch (e: Exception) {
