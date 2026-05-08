@@ -8,6 +8,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Business
+import androidx.compose.material.icons.filled.Chat
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -28,7 +29,8 @@ import com.example.sd_smart_parking_app.viewmodel.SharedDetailsViewModel
 
 @Composable
 fun DetailsScreen(
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    onNavigateToParkingNotes: () -> Unit = {}
 ) {
     val context = LocalContext.current
     val viewModel = remember { SharedDetailsViewModel.getInstance() }
@@ -106,6 +108,24 @@ fun DetailsScreen(
                             contentDescription = "Refresh",
                             modifier = Modifier.size(20.dp),
                             tint = if (isConnected) Color.Black else Color.Gray
+                        )
+                    }
+                }
+
+                // Botón de notas
+                Surface(
+                    modifier = Modifier.size(40.dp),
+                    shape = CircleShape,
+                    color = White,
+                    shadowElevation = 2.dp,
+                    onClick = { onNavigateToParkingNotes() }
+                ) {
+                    Box(contentAlignment = Alignment.Center) {
+                        Icon(
+                            imageVector = Icons.Default.Chat,
+                            contentDescription = "Parking Notes",
+                            modifier = Modifier.size(20.dp),
+                            tint = Color.Black
                         )
                     }
                 }
