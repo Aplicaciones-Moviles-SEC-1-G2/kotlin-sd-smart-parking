@@ -95,4 +95,7 @@ dependencies {
 
     // Firebase Storage
     implementation("com.google.firebase:firebase-storage")
+
+    // DataStore - Local Storage
+    implementation("androidx.datastore:datastore-preferences:1.0.0")
 }
