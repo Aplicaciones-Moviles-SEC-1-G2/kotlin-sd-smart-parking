@@ -24,6 +24,7 @@ import com.google.firebase.analytics.analytics
 import com.google.firebase.analytics.logEvent
 import com.google.firebase.auth.FirebaseAuth
 import com.example.sd_smart_parking_app.ui.screens.notes.ParkingNotesScreen
+import com.example.sd_smart_parking_app.ui.screens.stats.ParkingStatsScreen
 
 // Rutas de navegación
 object NavRoutes {
@@ -37,6 +38,8 @@ object NavRoutes {
     const val HISTORY = "history"
     const val PROFILE = "profile"
     const val PARKING_NOTES = "parking_notes"
+
+    const val PARKING_STATS = "parking_stats"
 }
 
 @Composable
@@ -145,11 +148,22 @@ fun SmartParkingNavGraph(
                     navController.navigate(NavRoutes.LOGIN) {
                         popUpTo(NavRoutes.HOME) { inclusive = true }
                     }
+                },
+                onNavigateToParkingStats = {
+                    navController.navigate(NavRoutes.PARKING_STATS)
                 }
             )
         }
         composable(NavRoutes.PARKING_NOTES) {
             ParkingNotesScreen(
+                onNavigateBack = {
+                    navController.popBackStack()
+                }
+            )
+        }
+
+        composable(NavRoutes.PARKING_STATS) {
+            ParkingStatsScreen(
                 onNavigateBack = {
                     navController.popBackStack()
                 }

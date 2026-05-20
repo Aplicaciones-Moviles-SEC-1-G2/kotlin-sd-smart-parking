@@ -65,13 +65,16 @@ import com.example.sd_smart_parking_app.viewmodel.AuthViewModel
 import com.example.sd_smart_parking_app.viewmodel.PhotoUploadState
 import com.example.sd_smart_parking_app.viewmodel.ProfileViewModel
 import java.io.File
+import com.example.sd_smart_parking_app.ui.theme.NavigationBlue
 
 @Composable
 fun ProfileScreen(
     modifier: Modifier = Modifier,
     viewModel: ProfileViewModel = viewModel(),
     authViewModel: AuthViewModel = viewModel(),
-    onNavigateToLogin: () -> Unit
+    onNavigateToLogin: () -> Unit,
+
+    onNavigateToParkingStats: () -> Unit = {}
 ) {
     val context = LocalContext.current
     val networkMonitor = remember { NetworkMonitor(context) }
@@ -361,6 +364,50 @@ fun ProfileScreen(
                         "No vehicle registered"
                     }
                     AccountCard(icon = "🚗", label = "Vehicle", value = vehicleInfo)
+                }
+
+                // My Parking Stats button
+                Column(
+                    modifier = Modifier.padding(horizontal = Spacing.lg)
+                ) {
+                    Card(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(bottom = Spacing.md)
+                            .clickable { onNavigateToParkingStats() },
+                        colors = CardDefaults.cardColors(containerColor = NavigationBlue),
+                        shape = RoundedCornerShape(CornerRadius.md),
+                        elevation = CardDefaults.cardElevation(defaultElevation = Elevation.md)
+                    ) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(Spacing.lg),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(Spacing.md)
+                            ) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(40.dp)
+                                        .background(color = White.copy(alpha = 0.2f), shape = RoundedCornerShape(50.dp)),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Text("📊", fontSize = 18.sp)
+                                }
+                                Text(
+                                    text = "My Parking Stats",
+                                    style = Typography.bodyMedium,
+                                    fontWeight = FontWeight.SemiBold,
+                                    color = White
+                                )
+                            }
+                            Text("→", fontSize = 20.sp, color = White)
+                        }
+                    }
                 }
 
                 // Preferences
