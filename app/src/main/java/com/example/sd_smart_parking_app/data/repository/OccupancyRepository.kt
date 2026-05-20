@@ -223,19 +223,14 @@ class OccupancyRepository private constructor() {
     suspend fun predictWithAI(targetHour: Int): Result<OccupancyPrediction> {
         return try {
 
-            // Verificar si hay caché válido en el LruCache
+
             if (isCacheValid(targetHour)) {
                 val cached = getCachedPrediction(targetHour)!!
                 Log.d("OccupancyRepository", "Cache hit — returning LruCache prediction for hour $targetHour")
                 return Result.success(cached)
             }
 
-            // -------------------------------------------------------------------------
-            // MULTITHREADING: Dos corrutinas paralelas en Dispatchers.IO
-            // Corrutina 1: obtiene datos recientes de ocupación (parking_occupancy_history)
-            // Corrutina 2: obtiene estadísticas de llegada de vehículos (vehicleRecords)
-            // Ambas corren simultáneamente en hilos separados del pool de IO
-            // -------------------------------------------------------------------------
+
             val recentData: List<OccupancyHistory>
             val hourlyStats: List<HourlyOccupancyStats>
             val arrivalStats: Map<Int, Int>
@@ -244,19 +239,16 @@ class OccupancyRepository private constructor() {
                 Log.d("OccupancyRepository", "Starting parallel Firebase queries on thread: ${Thread.currentThread().name}")
 
                 kotlinx.coroutines.coroutineScope {
-                    // Corrutina anidada 1 — consulta parking_occupancy_history en Dispatchers.IO
                     val recentDataJob = async(Dispatchers.IO) {
                         Log.d("OccupancyRepository", "Coroutine 1 (recentData) running on thread: ${Thread.currentThread().name}")
                         getRecentOccupancyData(30).getOrNull() ?: emptyList<OccupancyHistory>()
                     }
 
-                    // Corrutina anidada 2 — consulta vehicleRecords en Dispatchers.IO
                     val arrivalStatsJob = async(Dispatchers.IO) {
                         Log.d("OccupancyRepository", "Coroutine 2 (arrivalStats) running on thread: ${Thread.currentThread().name}")
                         getVehicleArrivalStats()
                     }
-
-                    // Corrutina anidada 3 — consulta hourly stats en Dispatchers.IO
+                    
                     val hourlyStatsJob = async(Dispatchers.IO) {
                         Log.d("OccupancyRepository", "Coroutine 3 (hourlyStats) running on thread: ${Thread.currentThread().name}")
                         getHourlyOccupancyStats().getOrNull() ?: emptyList<HourlyOccupancyStats>()
