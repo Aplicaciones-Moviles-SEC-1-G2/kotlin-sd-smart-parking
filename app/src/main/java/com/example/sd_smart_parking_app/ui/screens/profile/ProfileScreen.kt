@@ -74,7 +74,8 @@ fun ProfileScreen(
     authViewModel: AuthViewModel = viewModel(),
     onNavigateToLogin: () -> Unit,
 
-    onNavigateToParkingStats: () -> Unit = {}
+    onNavigateToParkingStats: () -> Unit = {},
+    onNavigateToCostBreakdown: () -> Unit = {}
 ) {
     val context = LocalContext.current
     val networkMonitor = remember { NetworkMonitor(context) }
@@ -366,7 +367,7 @@ fun ProfileScreen(
                     AccountCard(icon = "🚗", label = "Vehicle", value = vehicleInfo)
                 }
 
-                // My Parking Stats button
+                // My Parking Stats + Cost Breakdown buttons
                 Column(
                     modifier = Modifier.padding(horizontal = Spacing.lg)
                 ) {
@@ -400,6 +401,45 @@ fun ProfileScreen(
                                 }
                                 Text(
                                     text = "My Parking Stats",
+                                    style = Typography.bodyMedium,
+                                    fontWeight = FontWeight.SemiBold,
+                                    color = White
+                                )
+                            }
+                            Text("→", fontSize = 20.sp, color = White)
+                        }
+                    }
+
+                    Card(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(bottom = Spacing.md)
+                            .clickable { onNavigateToCostBreakdown() },
+                        colors = CardDefaults.cardColors(containerColor = androidx.compose.ui.graphics.Color(0xFF43A047)),
+                        shape = RoundedCornerShape(CornerRadius.md),
+                        elevation = CardDefaults.cardElevation(defaultElevation = Elevation.md)
+                    ) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(Spacing.lg),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(Spacing.md)
+                            ) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(40.dp)
+                                        .background(color = White.copy(alpha = 0.2f), shape = RoundedCornerShape(50.dp)),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Text("💰", fontSize = 18.sp)
+                                }
+                                Text(
+                                    text = "Cost Breakdown",
                                     style = Typography.bodyMedium,
                                     fontWeight = FontWeight.SemiBold,
                                     color = White
