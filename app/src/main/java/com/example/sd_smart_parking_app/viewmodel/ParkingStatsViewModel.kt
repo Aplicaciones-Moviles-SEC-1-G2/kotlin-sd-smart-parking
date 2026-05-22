@@ -2,11 +2,10 @@ package com.example.sd_smart_parking_app.viewmodel
 
 import android.content.Context
 import android.util.Log
+import android.util.LruCache
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.example.sd_smart_parking_app.data.ParkingStatsDatabase
 import com.example.sd_smart_parking_app.data.ParkingStatsDataStore
-import com.example.sd_smart_parking_app.data.model.ParkingStatsEntity
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
 import kotlinx.coroutines.Dispatchers
@@ -17,6 +16,7 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeoutOrNull
 import org.json.JSONObject
 import java.io.File
 import java.util.Calendar
@@ -38,7 +38,6 @@ data class ParkingStatsUIState(
     val lastSyncTimestamp: Long = 0L
 )
 
-// Modelo de resultado de cálculo — separa responsabilidades entre IO y Default
 private data class ComputedStats(
     val totalSessions: Int,
     val totalTimeHours: Double,
@@ -57,9 +56,19 @@ class ParkingStatsViewModel(private val context: Context) : ViewModel() {
     private val auth = FirebaseAuth.getInstance()
 
     // ── Capas de Local Storage ────────────────────────────────────────────────
-    // 1. Room: BD relacional para los stats calculados
-    private val db = ParkingStatsDatabase.getInstance(context)
-    private val dao = db.parkingStatsDao()
+    // 1. LRU Cache en memoria — acceso instantáneo, sin procesador de anotaciones
+    //    MAX_ENTRIES = 3: soporta hasta 3 usuarios simultáneos en dispositivo compartido
+    //    TTL = 1 hora: balance entre frescura y ahorro de llamadas a Firestore
+    private val lruCache = object : LruCache<String, ComputedStats>(3) {
+        override fun entryRemoved(
+            evicted: Boolean, key: String,
+            oldValue: ComputedStats, newValue: ComputedStats?
+        ) {
+            if (evicted) Log.d("ParkingStatsVM", "[LRU] Entrada eviccionada — key: $key")
+        }
+    }
+    private val lruTimestamps = mutableMapOf<String, Long>()
+    private val lruTtlMs = 60 * 60 * 1000L // 1 hora
 
     // 2. DataStore: metadata del caché (timestamp + email)
     private val dataStore = ParkingStatsDataStore(context)
@@ -83,55 +92,72 @@ class ParkingStatsViewModel(private val context: Context) : ViewModel() {
         val userEmail = auth.currentUser?.email ?: return
 
         // ── CORRUTINA 1: Main — orquestadora ─────────────────────────────────
-        // Coordina las 3 capas de local storage + Firestore.
-        // Decisión: viewModelScope garantiza cancelación automática al destruir
-        // el ViewModel, evitando memory leaks.
         viewModelScope.launch {
 
             _uiState.value = _uiState.value.copy(isLoading = true, error = null)
             Log.d("ParkingStatsVM", "[Main] Orquestadora iniciada — hilo: ${Thread.currentThread().name}")
 
-            // ── PASO 1: Leer caché de Room (Dispatchers.IO) ───────────────────
-            // Intentamos mostrar datos locales inmediatamente mientras
-            // decidimos si necesitamos ir a Firestore.
-            val cachedEntity = async(Dispatchers.IO) {
-                Log.d("ParkingStatsVM", "[IO] Leyendo Room — hilo: ${Thread.currentThread().name}")
-                dao.getStatsByEmail(userEmail)
-            }.await()
+            // ── PASO 1: Consultar LRU Cache en memoria ────────────────────────
+            val cachedStats = lruCache.get(userEmail)
+            val cacheTime = lruTimestamps[userEmail] ?: 0L
+            val lruValid = cachedStats != null &&
+                    (System.currentTimeMillis() - cacheTime) < lruTtlMs
 
-            // ── PASO 2: Leer metadata del caché (DataStore) ───────────────────
-            val lastSync = dataStore.lastSyncTimestamp.first()
-            val cachedEmail = dataStore.cachedUserEmail.first()
-            val cacheValid = dataStore.isCacheValid(lastSync) && cachedEmail == userEmail
-
-            Log.d("ParkingStatsVM", "[Main] Caché válido: $cacheValid | lastSync: $lastSync | email match: ${cachedEmail == userEmail}")
-
-            // Si hay caché de Room para este usuario, mostrarlo inmediatamente
-            if (cachedEntity != null && cachedEmail == userEmail) {
-                Log.d("ParkingStatsVM", "[Main] Mostrando datos desde Room")
+            if (lruValid && cachedStats != null) {
+                Log.d("ParkingStatsVM", "[Main] LRU Hit — mostrando datos desde caché en memoria")
+                Log.d("ParkingStatsVM", "[LRU] hits: ${lruCache.hitCount()} | misses: ${lruCache.missCount()} | size: ${lruCache.size()}/3")
                 withContext(Dispatchers.Main) {
-                    _uiState.value = cachedEntity.toUIState(isRefreshing = !cacheValid)
+                    _uiState.value = cachedStats.toUIState(
+                        isRefreshing = false,
+                        lastSync = cacheTime
+                    )
                 }
-            }
-
-            // Si el caché es válido y los datos ya están en pantalla, no vamos a Firestore
-            if (cacheValid && cachedEntity != null) {
-                Log.d("ParkingStatsVM", "[Main] Caché vigente — omitiendo Firestore")
-                _uiState.value = _uiState.value.copy(isLoading = false, isRefreshing = false)
                 return@launch
             }
 
+            Log.d("ParkingStatsVM", "[LRU] Miss — consultando fuentes persistentes")
+            Log.d("ParkingStatsVM", "[LRU] hits: ${lruCache.hitCount()} | misses: ${lruCache.missCount()} | size: ${lruCache.size()}/3")
+
+            // ── PASO 2: Leer metadata del caché (DataStore en IO) ─────────────
+            val lastSync = withContext(Dispatchers.IO) {
+                dataStore.lastSyncTimestamp.first()
+            }
+            val cachedEmail = withContext(Dispatchers.IO) {
+                dataStore.cachedUserEmail.first()
+            }
+            val datastoreValid = dataStore.isCacheValid(lastSync) && cachedEmail == userEmail
+
+            // Si DataStore indica caché válido, intentar leer desde archivo JSON
+            if (datastoreValid) {
+                val fileStats = withContext(Dispatchers.IO) {
+                    readStatsFromFile(userEmail)
+                }
+                if (fileStats != null) {
+                    Log.d("ParkingStatsVM", "[Main] DataStore válido — mostrando datos desde archivo JSON")
+                    withContext(Dispatchers.Main) {
+                        _uiState.value = fileStats
+                    }
+                    // Poblar LRU con datos del archivo para próximas consultas
+                    fileStats.toComputedStats()?.let { stats ->
+                        lruCache.put(userEmail, stats)
+                        lruTimestamps[userEmail] = lastSync
+                    }
+                    return@launch
+                }
+            }
+
             // ── PASO 3: Consultar Firestore (Dispatchers.IO) ──────────────────
-            // Solo llegamos aquí si el caché expiró o no existe.
             try {
                 val recordsDeferred = async(Dispatchers.IO) {
                     Log.d("ParkingStatsVM", "[IO] Consultando Firestore — hilo: ${Thread.currentThread().name}")
 
-                    val snapshot = firestore.collection("vehicleRecords")
-                        .whereEqualTo("ownerEmail", userEmail)
-                        .whereEqualTo("type", "exit")
-                        .get()
-                        .await()
+                    val snapshot = withTimeoutOrNull(5_000L) {
+                        firestore.collection("vehicleRecords")
+                            .whereEqualTo("ownerEmail", userEmail)
+                            .whereEqualTo("type", "exit")
+                            .get()
+                            .await()
+                    } ?: throw Exception("No internet connection — showing cached data")
 
                     snapshot.documents.mapNotNull { doc ->
                         try {
@@ -158,19 +184,19 @@ class ParkingStatsViewModel(private val context: Context) : ViewModel() {
 
                 if (records.isEmpty()) {
                     Log.d("ParkingStatsVM", "[Main] Sin registros en Firestore")
+                    // Intentar archivo JSON como último recurso
+                    val fileStats = withContext(Dispatchers.IO) { readStatsFromFile(userEmail) }
                     withContext(Dispatchers.Main) {
-                        _uiState.value = ParkingStatsUIState(isLoading = false)
+                        _uiState.value = fileStats ?: ParkingStatsUIState(isLoading = false)
                     }
                     return@launch
                 }
 
                 // ── PASO 4: Calcular stats (Dispatchers.Default) ──────────────
-                // Operaciones CPU-intensivas en el pool de cómputo.
                 val statsDeferred = async(Dispatchers.Default) {
                     Log.d("ParkingStatsVM", "[Default] Calculando stats — hilo: ${Thread.currentThread().name}")
 
                     val bogota = TimeZone.getTimeZone("America/Bogota")
-
                     val totalSessions   = records.size
                     val totalTimeHours  = records.sumOf { it.durationHours }
                     val totalPaidCOP    = totalTimeHours * hourlyRateCOP
@@ -254,88 +280,52 @@ class ParkingStatsViewModel(private val context: Context) : ViewModel() {
                 val stats = statsDeferred.await()
                 val now = System.currentTimeMillis()
 
-                // ── PASO 5: Persistir en las 3 capas de storage (IO) ──────────
+                // ── PASO 5: Persistir en las capas de storage (IO) ────────────
                 async(Dispatchers.IO) {
-                    Log.d("ParkingStatsVM", "[IO] Persistiendo en Room + DataStore + archivo")
+                    Log.d("ParkingStatsVM", "[IO] Persistiendo en DataStore + archivo JSON")
 
-                    // 1. Room — BD relacional
-                    val entity = ParkingStatsEntity(
-                        ownerEmail           = userEmail,
-                        totalSessions        = stats.totalSessions,
-                        totalTimeHours       = stats.totalTimeHours,
-                        totalPaidCOP         = stats.totalPaidCOP,
-                        avgSessionHours      = stats.avgSessionHours,
-                        busiestDay           = stats.busiestDay,
-                        busiestDaySessions   = stats.busiestDaySessions,
-                        favouriteFloor       = stats.favouriteFloor,
-                        favouriteFloorVisits = stats.favouriteFloorVisits,
-                        avgDurationByDay     = stats.avgDurationByDay,
-                        cachedAt             = now
-                    )
-                    dao.insertOrReplace(entity)
-                    Log.d("ParkingStatsVM", "[IO] Room actualizado")
-
-                    // 2. DataStore — metadata del caché
+                    // 1. DataStore — metadata del caché
                     dataStore.saveLastSyncTimestamp(now)
                     dataStore.saveCachedUserEmail(userEmail)
                     Log.d("ParkingStatsVM", "[IO] DataStore actualizado — timestamp: $now")
 
-                    // 3. Archivo local JSON — respaldo offline
+                    // 2. Archivo local JSON — respaldo offline
                     writeStatsToFile(stats, userEmail, now)
                     Log.d("ParkingStatsVM", "[IO] Archivo JSON actualizado: ${statsFile.absolutePath}")
-
                 }.await()
+
+                // 3. LRU Cache — acceso instantáneo para próxima apertura
+                lruCache.put(userEmail, stats)
+                lruTimestamps[userEmail] = now
+                Log.d("ParkingStatsVM", "[LRU] Stats guardados — hits: ${lruCache.hitCount()} | misses: ${lruCache.missCount()} | size: ${lruCache.size()}/3")
 
                 // ── PASO 6: Actualizar UI en Main ─────────────────────────────
                 withContext(Dispatchers.Main) {
                     Log.d("ParkingStatsVM", "[Main] Actualizando UI con stats frescos de Firestore")
-                    _uiState.value = ParkingStatsUIState(
-                        isLoading            = false,
-                        isRefreshing         = false,
-                        totalSessions        = stats.totalSessions,
-                        totalTimeHours       = stats.totalTimeHours,
-                        totalPaidCOP         = stats.totalPaidCOP,
-                        avgSessionHours      = stats.avgSessionHours,
-                        busiestDay           = stats.busiestDay,
-                        busiestDaySessions   = stats.busiestDaySessions,
-                        favouriteFloor       = stats.favouriteFloor,
-                        favouriteFloorVisits = stats.favouriteFloorVisits,
-                        avgDurationByDay     = stats.avgDurationByDay,
-                        lastSyncTimestamp    = now
-                    )
+                    _uiState.value = stats.toUIState(isRefreshing = false, lastSync = now)
                 }
 
             } catch (e: Exception) {
                 Log.e("ParkingStatsVM", "[Main] Error consultando Firestore: ${e.message}", e)
 
-                // Si Firestore falla pero tenemos caché, no mostramos error
-                if (cachedEntity != null) {
-                    Log.d("ParkingStatsVM", "[Main] Firestore falló — manteniendo datos de Room")
-                    withContext(Dispatchers.Main) {
-                        _uiState.value = cachedEntity.toUIState(isRefreshing = false)
-                    }
-                } else {
-                    // Sin caché y sin red — intentar leer archivo JSON
-                    val fileStats = readStatsFromFile(userEmail)
-                    withContext(Dispatchers.Main) {
-                        if (fileStats != null) {
-                            Log.d("ParkingStatsVM", "[Main] Mostrando datos desde archivo JSON")
-                            _uiState.value = fileStats
-                        } else {
-                            _uiState.value = _uiState.value.copy(
-                                isLoading    = false,
-                                isRefreshing = false,
-                                error        = e.message
-                            )
-                        }
+                // Intentar archivo JSON como fallback offline
+                val fileStats = withContext(Dispatchers.IO) { readStatsFromFile(userEmail) }
+                withContext(Dispatchers.Main) {
+                    if (fileStats != null) {
+                        Log.d("ParkingStatsVM", "[Main] Mostrando datos desde archivo JSON (offline)")
+                        _uiState.value = fileStats
+                    } else {
+                        _uiState.value = _uiState.value.copy(
+                            isLoading    = false,
+                            isRefreshing = false,
+                            error        = e.message
+                        )
                     }
                 }
             }
         }
     }
 
-    // ── Escribir stats a archivo JSON local ───────────────────────────────────
-    // Dispatchers.IO — operación de disco
     private fun writeStatsToFile(stats: ComputedStats, email: String, timestamp: Long) {
         try {
             val json = JSONObject().apply {
@@ -359,8 +349,6 @@ class ParkingStatsViewModel(private val context: Context) : ViewModel() {
         }
     }
 
-    // ── Leer stats desde archivo JSON local ───────────────────────────────────
-    // Último recurso: sin Room y sin Firestore
     private fun readStatsFromFile(userEmail: String): ParkingStatsUIState? {
         return try {
             if (!statsFile.exists()) return null
@@ -390,8 +378,6 @@ class ParkingStatsViewModel(private val context: Context) : ViewModel() {
             null
         }
     }
-
-    // ── Helpers de formato ────────────────────────────────────────────────────
 
     fun formatTotalTime(hours: Double): String {
         val h = hours.toInt()
@@ -427,11 +413,7 @@ class ParkingStatsViewModel(private val context: Context) : ViewModel() {
         map.values.maxOrNull()?.takeIf { it > 0 } ?: 1.0
 }
 
-// ── Extension: ParkingStatsEntity → ParkingStatsUIState ──────────────────────
-// Convierte la entidad de Room al estado de UI sin pasar por el ViewModel.
-// Decisión: extension function en lugar de método en la entidad para respetar
-// la separación entre capa de datos y capa de UI del patrón MVVM.
-private fun ParkingStatsEntity.toUIState(isRefreshing: Boolean = false) = ParkingStatsUIState(
+private fun ComputedStats.toUIState(isRefreshing: Boolean, lastSync: Long) = ParkingStatsUIState(
     isLoading            = false,
     isRefreshing         = isRefreshing,
     totalSessions        = totalSessions,
@@ -443,5 +425,20 @@ private fun ParkingStatsEntity.toUIState(isRefreshing: Boolean = false) = Parkin
     favouriteFloor       = favouriteFloor,
     favouriteFloorVisits = favouriteFloorVisits,
     avgDurationByDay     = avgDurationByDay,
-    lastSyncTimestamp    = cachedAt
+    lastSyncTimestamp    = lastSync
 )
+
+private fun ParkingStatsUIState.toComputedStats(): ComputedStats? {
+    if (totalSessions == 0) return null
+    return ComputedStats(
+        totalSessions        = totalSessions,
+        totalTimeHours       = totalTimeHours,
+        totalPaidCOP         = totalPaidCOP,
+        avgSessionHours      = avgSessionHours,
+        busiestDay           = busiestDay,
+        busiestDaySessions   = busiestDaySessions,
+        favouriteFloor       = favouriteFloor,
+        favouriteFloorVisits = favouriteFloorVisits,
+        avgDurationByDay     = avgDurationByDay
+    )
+}
