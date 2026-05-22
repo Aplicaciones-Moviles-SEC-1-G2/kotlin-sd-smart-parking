@@ -40,6 +40,7 @@ import android.util.Log
 import android.util.LruCache
 import com.example.sd_smart_parking_app.data.model.NearbyParking
 import com.google.firebase.firestore.FirebaseFirestore
+import com.google.firebase.firestore.Source
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
@@ -52,7 +53,7 @@ import org.json.JSONObject
 // Sealed result type
 // ─────────────────────────────────────────────────────────────────────────────
 sealed class NearbyParkingResult {
-    data class Fresh(val data: List<NearbyParking>) : NearbyParkingResult()
+    data class Fresh(val data: List<NearbyParking>, val savedAtMs: Long) : NearbyParkingResult()
     data class FromCache(val data: List<NearbyParking>, val savedAtMs: Long) : NearbyParkingResult()
     data class FromLocalStorage(val data: List<NearbyParking>, val savedAtMs: Long) : NearbyParkingResult()
     object NoData : NearbyParkingResult()
@@ -167,12 +168,13 @@ class NearbyParkingRepository private constructor(private val context: Context) 
             val freshList = withContext(Dispatchers.IO) {
                 fetchFromFirestoreWithParallelCoroutines()
             }
+            val fetchedAt = System.currentTimeMillis()
             saveToCache(freshList)
             withContext(Dispatchers.IO) {
                 saveToSharedPreferences(freshList)
             }
-            Log.d("NearbyParkingRepo", "Returning Fresh data — ${freshList.size} items")
-            NearbyParkingResult.Fresh(freshList)
+            Log.d("NearbyParkingRepo", "Returning Fresh data — ${freshList.size} items at $fetchedAt")
+            NearbyParkingResult.Fresh(freshList, fetchedAt)
 
         } catch (e: Exception) {
             Log.w("NearbyParkingRepo", "Firestore fetch failed: ${e.message} — falling back to cache")
@@ -210,8 +212,10 @@ class NearbyParkingRepository private constructor(private val context: Context) 
         coroutineScope {
             val parkingJob = async(Dispatchers.IO) {
                 Log.d("NearbyParkingRepo", "Coroutine parkingJob running on: ${Thread.currentThread().name}")
+                // Source.SERVER ensures Firestore throws when offline instead of
+                // silently returning its own local cache, which would falsely appear as Fresh data.
                 firestore.collection("nearbyParking")
-                    .get()
+                    .get(Source.SERVER)
                     .await()
                     .documents
                     .mapNotNull { doc ->

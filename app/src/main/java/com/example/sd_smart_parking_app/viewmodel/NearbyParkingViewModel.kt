@@ -54,13 +54,13 @@ class NearbyParkingViewModel(application: Application) : AndroidViewModel(applic
 
             when (val result = repository.getNearbyParking()) {
                 is NearbyParkingResult.Fresh -> {
-                    Log.d("NearbyParkingVM", "Result: Fresh — ${result.data.size} items")
+                    Log.d("NearbyParkingVM", "Result: Fresh — ${result.data.size} items, fetchedAt=${result.savedAtMs}")
                     _uiState.update {
                         it.copy(
                             parkingList = result.data,
                             isLoading = false,
                             dataSource = DataSource.FRESH,
-                            savedAtMs = 0L,
+                            savedAtMs = result.savedAtMs,
                             errorMessage = null
                         )
                     }
