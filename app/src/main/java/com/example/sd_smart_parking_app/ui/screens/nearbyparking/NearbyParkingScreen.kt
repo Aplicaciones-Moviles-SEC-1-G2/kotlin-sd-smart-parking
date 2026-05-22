@@ -171,8 +171,8 @@ private fun NearbyParkingContent(
                 )
             }
 
-            // Data source banner — shown when data is not fresh
-            if (uiState.dataSource != DataSource.FRESH && !uiState.isLoading) {
+            // Data source banner — always shown when not loading, including FRESH
+            if (!uiState.isLoading && uiState.dataSource != DataSource.NONE) {
                 DataSourceBanner(
                     dataSource = uiState.dataSource,
                     savedAtMs = uiState.savedAtMs
@@ -240,18 +240,21 @@ private fun DataSourceBanner(
     savedAtMs: Long
 ) {
     val (backgroundColor, message) = when (dataSource) {
+        DataSource.FRESH -> {
+            val formatted = SimpleDateFormat("HH:mm", Locale.getDefault()).format(Date(savedAtMs))
+            Pair(Color(0xFFE8F5E9), "🟢 Live data · Updated at $formatted")
+        }
         DataSource.CACHE -> {
             val minutesAgo = ((System.currentTimeMillis() - savedAtMs) / 60_000)
                 .coerceAtLeast(0)
-            Pair(Color(0xFFFFF8E1), "⏱ Showing recent data · Updated $minutesAgo min ago")
+            Pair(Color(0xFFFFF8E1), "⏱ Showing recent data · Last sync $minutesAgo min ago")
         }
         DataSource.LOCAL_STORAGE -> {
             val formatted = SimpleDateFormat("dd/MM/yyyy HH:mm", Locale.getDefault())
                 .format(Date(savedAtMs))
-            Pair(Color(0xFFFFF3E0), "📦 Offline · Last saved $formatted")
+            Pair(Color(0xFFFFF3E0), "📦 Offline · Last sync $formatted")
         }
-        DataSource.NONE -> Pair(Color(0xFFFFEBEE), "❌ No data available")
-        DataSource.FRESH -> return
+        DataSource.NONE -> return
     }
 
     Box(
