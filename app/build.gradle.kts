@@ -99,7 +99,7 @@ dependencies {
     // DataStore - Local Storage
     implementation("androidx.datastore:datastore-preferences:1.0.0")
 
-    // Room - Local Relational DB
-    implementation("androidx.room:room-runtime:2.6.1")
-    implementation("androidx.room:room-ktx:2.6.1")
+    // Room - Local Relational DB (compile only, no annotation processor)
+    implementation("androidx.room:room-runtime:2.7.1")
+    implementation("androidx.room:room-ktx:2.7.1")
 }
