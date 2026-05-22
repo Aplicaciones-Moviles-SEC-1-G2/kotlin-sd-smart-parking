@@ -2,6 +2,7 @@ package com.example.sd_smart_parking_app.ui.screens.nearbyparking
 
 import android.content.Intent
 import android.net.Uri
+import android.util.Log
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -33,18 +34,23 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.example.sd_smart_parking_app.data.NetworkMonitor
 import com.example.sd_smart_parking_app.data.model.NearbyParking
+import com.example.sd_smart_parking_app.ui.components.OfflineBanner
 import com.example.sd_smart_parking_app.ui.components.PrimaryButton
 import com.example.sd_smart_parking_app.ui.theme.CornerRadius
 import com.example.sd_smart_parking_app.ui.theme.DarkText
@@ -54,13 +60,15 @@ import com.example.sd_smart_parking_app.ui.theme.LowAvailabilityRed
 import com.example.sd_smart_parking_app.ui.theme.MediumAvailabilityOrange
 import com.example.sd_smart_parking_app.ui.theme.MediumGray
 import com.example.sd_smart_parking_app.ui.theme.PrimaryYellow
-import com.example.sd_smart_parking_app.ui.theme.SmartParkingTheme
 import com.example.sd_smart_parking_app.ui.theme.Spacing
 import com.example.sd_smart_parking_app.ui.theme.Typography
 import com.example.sd_smart_parking_app.ui.theme.White
 import com.example.sd_smart_parking_app.viewmodel.DataSource
 import com.example.sd_smart_parking_app.viewmodel.NearbyParkingUiState
 import com.example.sd_smart_parking_app.viewmodel.NearbyParkingViewModel
+import com.google.firebase.firestore.FieldValue
+import com.google.firebase.firestore.FirebaseFirestore
+import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -73,10 +81,20 @@ fun NearbyParkingScreen(
     val viewModel: NearbyParkingViewModel = viewModel()
     val uiState by viewModel.uiState.collectAsState()
 
+    // Connectivity — same pattern as DetailsScreen (data.NetworkMonitor)
+    val context = LocalContext.current
+    val networkMonitor = remember { NetworkMonitor(context) }
+    val isConnected by networkMonitor.isConnected.collectAsState()
+
+    DisposableEffect(Unit) {
+        onDispose { networkMonitor.unregister() }
+    }
+
     LaunchedEffect(Unit) { viewModel.loadNearbyParking() }
 
     NearbyParkingContent(
         uiState = uiState,
+        isConnected = isConnected,
         onNavigateBack = onNavigateBack,
         onRefresh = { viewModel.loadNearbyParking() },
         modifier = modifier
@@ -87,6 +105,7 @@ fun NearbyParkingScreen(
 @Composable
 private fun NearbyParkingContent(
     uiState: NearbyParkingUiState,
+    isConnected: Boolean,
     onNavigateBack: () -> Unit,
     onRefresh: () -> Unit,
     modifier: Modifier = Modifier
@@ -112,11 +131,13 @@ private fun NearbyParkingContent(
                     }
                 },
                 actions = {
-                    IconButton(onClick = onRefresh) {
+                    // Disabled when offline — matches DetailsScreen pattern
+                    IconButton(onClick = { if (isConnected) onRefresh() }) {
                         Icon(
                             imageVector = Icons.Default.Refresh,
                             contentDescription = "Refresh",
-                            tint = DarkText
+                            tint = DarkText,
+                            modifier = Modifier.alpha(if (isConnected) 1f else 0.4f)
                         )
                     }
                 },
@@ -134,6 +155,22 @@ private fun NearbyParkingContent(
                 .fillMaxSize()
                 .padding(paddingValues)
         ) {
+            // Offline banner — shown when there is no internet connection
+            if (!isConnected) {
+                val subMessage = if (uiState.savedAtMs > 0L) {
+                    val minutesAgo = ((System.currentTimeMillis() - uiState.savedAtMs) / 60_000)
+                        .coerceAtLeast(0)
+                    "These options were last updated $minutesAgo min ago"
+                } else {
+                    "Showing last available data"
+                }
+                OfflineBanner(
+                    message = "Nearby parking options may be outdated",
+                    subMessage = subMessage,
+                    modifier = Modifier.padding(horizontal = Spacing.md, vertical = Spacing.xs)
+                )
+            }
+
             // Data source banner — shown when data is not fresh
             if (uiState.dataSource != DataSource.FRESH && !uiState.isLoading) {
                 DataSourceBanner(
@@ -184,7 +221,11 @@ private fun NearbyParkingContent(
                         verticalArrangement = Arrangement.spacedBy(Spacing.md)
                     ) {
                         items(uiState.parkingList) { parking ->
-                            NearbyParkingCard(parking = parking)
+                            NearbyParkingCard(
+                                parking = parking,
+                                dataSource = uiState.dataSource,
+                                isConnected = isConnected
+                            )
                         }
                     }
                 }
@@ -200,25 +241,16 @@ private fun DataSourceBanner(
 ) {
     val (backgroundColor, message) = when (dataSource) {
         DataSource.CACHE -> {
-            val minutesAgo = ((System.currentTimeMillis() - savedAtMs) / 60000).toInt()
+            val minutesAgo = ((System.currentTimeMillis() - savedAtMs) / 60_000)
                 .coerceAtLeast(0)
-            Pair(
-                Color(0xFFFFF8E1),
-                "⏱ Showing recent data · Updated $minutesAgo min ago"
-            )
+            Pair(Color(0xFFFFF8E1), "⏱ Showing recent data · Updated $minutesAgo min ago")
         }
         DataSource.LOCAL_STORAGE -> {
             val formatted = SimpleDateFormat("dd/MM/yyyy HH:mm", Locale.getDefault())
                 .format(Date(savedAtMs))
-            Pair(
-                Color(0xFFFFF3E0),
-                "📦 Offline · Last saved $formatted"
-            )
+            Pair(Color(0xFFFFF3E0), "📦 Offline · Last saved $formatted")
         }
-        DataSource.NONE -> Pair(
-            Color(0xFFFFEBEE),
-            "❌ No data available"
-        )
+        DataSource.NONE -> Pair(Color(0xFFFFEBEE), "❌ No data available")
         DataSource.FRESH -> return
     }
 
@@ -242,8 +274,13 @@ private fun DataSourceBanner(
 }
 
 @Composable
-private fun NearbyParkingCard(parking: NearbyParking) {
+private fun NearbyParkingCard(
+    parking: NearbyParking,
+    dataSource: DataSource,
+    isConnected: Boolean
+) {
     val context = LocalContext.current
+    val scope = rememberCoroutineScope()
 
     Card(
         modifier = Modifier.fillMaxWidth(),
@@ -258,15 +295,8 @@ private fun NearbyParkingCard(parking: NearbyParking) {
                 verticalAlignment = Alignment.Top
             ) {
                 Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        text = parking.name,
-                        style = Typography.headlineSmall
-                    )
-                    Text(
-                        text = parking.address,
-                        style = Typography.bodySmall,
-                        color = MediumGray
-                    )
+                    Text(text = parking.name, style = Typography.headlineSmall)
+                    Text(text = parking.address, style = Typography.bodySmall, color = MediumGray)
                 }
                 AvailabilityBadge(capacity = parking.approximateCapacity)
             }
@@ -282,10 +312,7 @@ private fun NearbyParkingCard(parking: NearbyParking) {
                         tint = MediumGray
                     )
                     Spacer(modifier = Modifier.width(Spacing.xs))
-                    Text(
-                        text = "${parking.distanceMeters.toInt()} m away",
-                        style = Typography.bodySmall
-                    )
+                    Text(text = "${parking.distanceMeters.toInt()} m away", style = Typography.bodySmall)
                 }
                 if (parking.phone.isNotEmpty()) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
@@ -296,10 +323,7 @@ private fun NearbyParkingCard(parking: NearbyParking) {
                             tint = MediumGray
                         )
                         Spacer(modifier = Modifier.width(Spacing.xs))
-                        Text(
-                            text = parking.phone,
-                            style = Typography.bodySmall
-                        )
+                        Text(text = parking.phone, style = Typography.bodySmall)
                     }
                 }
             }
@@ -309,6 +333,27 @@ private fun NearbyParkingCard(parking: NearbyParking) {
             PrimaryButton(
                 text = "How to get there",
                 onClick = {
+                    // Fire-and-forget navigation event — Firestore queues it offline automatically
+                    scope.launch {
+                        try {
+                            FirebaseFirestore.getInstance()
+                                .collection("navigation_events")
+                                .add(
+                                    mapOf(
+                                        "parkingId"       to parking.id,
+                                        "parkingName"     to parking.name,
+                                        "distanceMeters"  to parking.distanceMeters,
+                                        "timestamp"       to FieldValue.serverTimestamp(),
+                                        "dataSource"      to dataSource.name,
+                                        "isOffline"       to !isConnected
+                                    )
+                                )
+                        } catch (e: Exception) {
+                            Log.e("NearbyParkingScreen", "Failed to log navigation event: ${e.message}", e)
+                        }
+                    }
+
+                    // Launch Maps intent immediately — not blocked by the Firestore write above
                     val uri = Uri.parse("google.navigation:q=${parking.lat},${parking.lng}")
                     val intent = Intent(Intent.ACTION_VIEW, uri).apply {
                         setPackage("com.google.android.apps.maps")
@@ -323,14 +368,12 @@ private fun NearbyParkingCard(parking: NearbyParking) {
 @Composable
 private fun AvailabilityBadge(capacity: Int) {
     val (backgroundColor, label) = when {
-        capacity > 50 -> Pair(HighAvailabilityGreen, "High")
+        capacity > 50  -> Pair(HighAvailabilityGreen, "High")
         capacity >= 20 -> Pair(MediumAvailabilityOrange, "Medium")
-        else -> Pair(LowAvailabilityRed, "Low")
+        else           -> Pair(LowAvailabilityRed, "Low")
     }
 
-    Box(
-        modifier = Modifier.padding(start = Spacing.sm)
-    ) {
+    Box(modifier = Modifier.padding(start = Spacing.sm)) {
         Card(
             shape = RoundedCornerShape(CornerRadius.sm),
             colors = CardDefaults.cardColors(containerColor = backgroundColor)
@@ -339,49 +382,9 @@ private fun AvailabilityBadge(capacity: Int) {
                 text = label,
                 style = Typography.labelSmall,
                 color = White,
-                modifier = Modifier.padding(
-                    horizontal = Spacing.xs,
-                    vertical = Spacing.xs
-                )
+                modifier = Modifier.padding(horizontal = Spacing.xs, vertical = Spacing.xs)
             )
         }
     }
 }
 
-@Preview(showBackground = true, showSystemUi = true)
-@Composable
-private fun NearbyParkingScreenPreview() {
-    val mockParkingList = listOf(
-        NearbyParking(
-            id = "parking_calle_19",
-            name = "Parqueadero Calle 19",
-            address = "Cl. 19 #3-16, Bogotá",
-            lat = 4.60098,
-            lng = -74.06521,
-            approximateCapacity = 80,
-            phone = "+57 1 234 5678",
-            distanceMeters = 560f
-        ),
-        NearbyParking(
-            id = "parking_eje_ambiental",
-            name = "Parqueadero Eje Ambiental",
-            address = "Av. Jiménez #3-50, Bogotá",
-            lat = 4.60201,
-            lng = -74.06874,
-            approximateCapacity = 35,
-            phone = "+57 1 456 7890",
-            distanceMeters = 280f
-        )
-    )
-    SmartParkingTheme {
-        NearbyParkingContent(
-            uiState = NearbyParkingUiState(
-                parkingList = mockParkingList,
-                isLoading = false,
-                dataSource = DataSource.FRESH
-            ),
-            onNavigateBack = {},
-            onRefresh = {}
-        )
-    }
-}
