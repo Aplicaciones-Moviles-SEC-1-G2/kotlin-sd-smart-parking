@@ -61,6 +61,13 @@ private val ChartBlue    = Color(0xFF1565C0)
 private val InsightAmber = Color(0xFFFF8F00)
 private val InsightBlue  = Color(0xFF5C6BC0)
 
+// ── Optimization #4: Indexed array for default chart days ────────────────────
+// Previously declared as a new List inside StatsContent on every recomposition.
+// Moving it to a top-level val means it is allocated once for the file's lifetime.
+private val defaultChartDays = arrayOf(
+    "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"
+)
+
 @Composable
 fun ParkingStatsScreen(
     modifier: Modifier = Modifier,
@@ -68,12 +75,9 @@ fun ParkingStatsScreen(
 ) {
     val context = LocalContext.current
 
-    // ── Network Monitor ───────────────────────────────────────────────────────
     val networkMonitor = remember { NetworkMonitor(context) }
     val isConnected by networkMonitor.isConnected.collectAsState()
-    DisposableEffect(Unit) {
-        onDispose { networkMonitor.unregister() }
-    }
+    DisposableEffect(Unit) { onDispose { networkMonitor.unregister() } }
 
     val viewModel: ParkingStatsViewModel = viewModel(
         factory = object : ViewModelProvider.Factory {
@@ -94,8 +98,6 @@ fun ParkingStatsScreen(
                 .padding(paddingValues)
                 .verticalScroll(rememberScrollState())
         ) {
-
-            // ── Top bar ───────────────────────────────────────────────────
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -105,30 +107,16 @@ fun ParkingStatsScreen(
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
                 IconButton(onClick = onNavigateBack) {
-                    Icon(
-                        imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                        contentDescription = "Back"
-                    )
+                    Icon(imageVector = Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
                 }
-                Text(
-                    text = "My Parking Stats",
-                    style = Typography.headlineMedium,
-                    fontWeight = FontWeight.Bold
-                )
+                Text(text = "My Parking Stats", style = Typography.headlineMedium, fontWeight = FontWeight.Bold)
                 IconButton(onClick = { viewModel.loadStats() }) {
-                    Icon(
-                        imageVector = Icons.Default.Refresh,
-                        contentDescription = "Refresh"
-                    )
+                    Icon(imageVector = Icons.Default.Refresh, contentDescription = "Refresh")
                 }
             }
 
             Spacer(modifier = Modifier.height(Spacing.lg))
 
-            // ── Banner offline — ParkingStats ─────────────────────────────
-            // Mensaje personalizado: informa que los stats vienen del caché
-            // local (LRU + DataStore + JSON) y se actualizarán al recuperar
-            // la conexión. No bloquea la UI — los datos cacheados se muestran.
             if (!isConnected) {
                 OfflineBanner(
                     message = "Your parking stats are shown from your last sync. " +
@@ -141,69 +129,31 @@ fun ParkingStatsScreen(
 
             when {
                 uiState.isLoading -> {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(top = 80.dp),
-                        contentAlignment = Alignment.Center
-                    ) {
+                    Box(modifier = Modifier.fillMaxWidth().padding(top = 80.dp), contentAlignment = Alignment.Center) {
                         CircularProgressIndicator(color = NavigationBlue)
                     }
                 }
-
                 uiState.error != null && uiState.totalSessions == 0 -> {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(top = 80.dp),
-                        contentAlignment = Alignment.Center
-                    ) {
+                    Box(modifier = Modifier.fillMaxWidth().padding(top = 80.dp), contentAlignment = Alignment.Center) {
                         Column(horizontalAlignment = Alignment.CenterHorizontally) {
                             Text("⚠️", fontSize = 40.sp)
                             Spacer(modifier = Modifier.height(Spacing.md))
-                            Text(
-                                text = "Could not load stats",
-                                style = Typography.bodyMedium,
-                                fontWeight = FontWeight.SemiBold
-                            )
-                            Text(
-                                text = uiState.error ?: "",
-                                style = Typography.bodySmall,
-                                color = MediumGray,
-                                modifier = Modifier.padding(top = Spacing.xs)
-                            )
+                            Text(text = "Could not load stats", style = Typography.bodyMedium, fontWeight = FontWeight.SemiBold)
+                            Text(text = uiState.error ?: "", style = Typography.bodySmall, color = MediumGray, modifier = Modifier.padding(top = Spacing.xs))
                         }
                     }
                 }
-
                 uiState.totalSessions == 0 -> {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(top = 80.dp),
-                        contentAlignment = Alignment.Center
-                    ) {
+                    Box(modifier = Modifier.fillMaxWidth().padding(top = 80.dp), contentAlignment = Alignment.Center) {
                         Column(horizontalAlignment = Alignment.CenterHorizontally) {
                             Text("🅿️", fontSize = 48.sp)
                             Spacer(modifier = Modifier.height(Spacing.md))
-                            Text(
-                                text = "No parking sessions yet",
-                                style = Typography.bodyMedium,
-                                fontWeight = FontWeight.SemiBold
-                            )
-                            Text(
-                                text = "Your stats will appear here after your first session.",
-                                style = Typography.bodySmall,
-                                color = MediumGray,
-                                modifier = Modifier.padding(top = Spacing.xs)
-                            )
+                            Text(text = "No parking sessions yet", style = Typography.bodyMedium, fontWeight = FontWeight.SemiBold)
+                            Text(text = "Your stats will appear here after your first session.", style = Typography.bodySmall, color = MediumGray, modifier = Modifier.padding(top = Spacing.xs))
                         }
                     }
                 }
-
-                else -> {
-                    StatsContent(viewModel = viewModel)
-                }
+                else -> StatsContent(viewModel = viewModel)
             }
 
             Spacer(modifier = Modifier.height(Spacing.lg))
@@ -216,9 +166,7 @@ private fun StatsContent(viewModel: ParkingStatsViewModel) {
     val s by viewModel.uiState.collectAsState()
 
     Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = Spacing.lg),
+        modifier = Modifier.fillMaxWidth().padding(horizontal = Spacing.lg),
         horizontalArrangement = Arrangement.spacedBy(Spacing.md)
     ) {
         KpiCard(modifier = Modifier.weight(1f), icon = "🚗", iconTint = KpiBlue, value = s.totalSessions.toString(), label = "Sessions")
@@ -227,26 +175,21 @@ private fun StatsContent(viewModel: ParkingStatsViewModel) {
     }
 
     Spacer(modifier = Modifier.height(Spacing.md))
-
     AvgSessionCard(label = "Average Session", value = viewModel.formatTotalTime(s.avgSessionHours))
-
     Spacer(modifier = Modifier.height(Spacing.md))
 
     Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = Spacing.lg),
+        modifier = Modifier.fillMaxWidth().padding(horizontal = Spacing.lg),
         horizontalArrangement = Arrangement.spacedBy(Spacing.md)
     ) {
         InsightCard(
-            modifier = Modifier.weight(1f),
-            icon = "📅", iconTint = InsightAmber, title = "Busiest Day",
-            mainValue = s.busiestDay,
+            modifier = Modifier.weight(1f), icon = "📅", iconTint = InsightAmber,
+            title = "Busiest Day", mainValue = s.busiestDay,
             subValue = "${s.busiestDaySessions} session${if (s.busiestDaySessions != 1) "s" else ""}"
         )
         InsightCard(
-            modifier = Modifier.weight(1f),
-            icon = "🏢", iconTint = InsightBlue, title = "Favourite Floor",
+            modifier = Modifier.weight(1f), icon = "🏢", iconTint = InsightBlue,
+            title = "Favourite Floor",
             mainValue = if (s.favouriteFloor > 0) "Floor ${s.favouriteFloor}" else "—",
             subValue = "${s.favouriteFloorVisits} visit${if (s.favouriteFloorVisits != 1) "s" else ""}"
         )
@@ -254,8 +197,20 @@ private fun StatsContent(viewModel: ParkingStatsViewModel) {
 
     Spacer(modifier = Modifier.height(Spacing.md))
 
-    val chartData = if (s.avgDurationByDay.isNotEmpty()) s.avgDurationByDay
-    else listOf("Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday").associateWith { 0.0 }
+    // ── Optimization #4: Indexed access over defaultChartDays array ──────────
+    // Previously: listOf(...).associateWith { 0.0 } created a new List and a
+    // new LinkedHashMap on every recomposition when avgDurationByDay was empty.
+    // Now we build the fallback map from a top-level Array using an indexed loop,
+    // avoiding both the List allocation and the iterator.
+    val chartData: Map<String, Double> = if (s.avgDurationByDay.isNotEmpty()) {
+        s.avgDurationByDay
+    } else {
+        val fallback = LinkedHashMap<String, Double>(7)
+        for (i in 0 until defaultChartDays.size) {
+            fallback[defaultChartDays[i]] = 0.0
+        }
+        fallback
+    }
 
     AvgDurationBarChart(
         data = chartData,
@@ -309,7 +264,15 @@ private fun AvgDurationBarChart(data: Map<String, Double>, maxValue: Double, for
         Column(modifier = Modifier.fillMaxWidth().padding(Spacing.lg)) {
             Text(text = "Avg Duration by Day of Week", style = Typography.bodyMedium, fontWeight = FontWeight.SemiBold, color = Color.Black)
             Spacer(modifier = Modifier.height(Spacing.lg))
-            data.forEach { (day, avgHours) ->
+
+            // ── Optimization #4: Indexed loop over map entries ────────────────
+            // data.forEach { } allocates an Iterator on every recomposition.
+            // Converting to a list of entries and using an indexed for loop
+            // avoids that allocation on each chart render.
+            val keys = data.keys.toList()
+            for (i in 0 until keys.size) {
+                val day      = keys[i]
+                val avgHours = data[day] ?: 0.0
                 val fraction = if (avgHours == 0.0) 0.04f else (avgHours / maxValue).coerceIn(0.0, 1.0).toFloat()
                 Row(modifier = Modifier.fillMaxWidth().padding(bottom = Spacing.sm), verticalAlignment = Alignment.CenterVertically) {
                     Text(text = shortDay(day), style = Typography.bodySmall, color = MediumGray, modifier = Modifier.width(36.dp))
