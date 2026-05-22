@@ -26,6 +26,7 @@ import com.google.firebase.auth.FirebaseAuth
 import com.example.sd_smart_parking_app.ui.screens.notes.ParkingNotesScreen
 import com.example.sd_smart_parking_app.ui.screens.stats.ParkingStatsScreen
 import com.example.sd_smart_parking_app.ui.screens.costbreakdown.CostBreakdownScreen
+import com.example.sd_smart_parking_app.ui.screens.nearbyparking.NearbyParkingScreen
 
 // Rutas de navegación
 object NavRoutes {
@@ -41,6 +42,7 @@ object NavRoutes {
     const val PARKING_NOTES = "parking_notes"
     const val PARKING_STATS = "parking_stats"
     const val COST_BREAKDOWN = "cost_breakdown"
+    const val NEARBY_PARKING = "nearby_parking"
 }
 
 @Composable
@@ -127,6 +129,9 @@ fun SmartParkingNavGraph(
                         launchSingleTop = true
                         restoreState = true
                     }
+                },
+                onNearbyParkingClick = {
+                    navController.navigate(NavRoutes.NEARBY_PARKING)
                 }
             )
         }
@@ -179,6 +184,12 @@ fun SmartParkingNavGraph(
                 onNavigateBack = {
                     navController.popBackStack()
                 }
+            )
+        }
+
+        composable(NavRoutes.NEARBY_PARKING) {
+            NearbyParkingScreen(
+                onNavigateBack = { navController.popBackStack() }
             )
         }
     }
