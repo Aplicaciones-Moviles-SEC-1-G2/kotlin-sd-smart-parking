@@ -1,17 +1,30 @@
 package com.example.sd_smart_parking_app.ui.screens.home
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.unit.dp
 import com.example.sd_smart_parking_app.data.NetworkMonitor
 import com.example.sd_smart_parking_app.data.model.Floor
 import com.example.sd_smart_parking_app.ui.components.FloorRecommendationCard
@@ -20,6 +33,11 @@ import com.example.sd_smart_parking_app.ui.components.OfflineBanner
 import com.example.sd_smart_parking_app.ui.components.ParkingCard
 import com.example.sd_smart_parking_app.ui.components.WeatherCard
 import com.example.sd_smart_parking_app.ui.theme.BackgroundWhite
+import com.example.sd_smart_parking_app.ui.theme.CornerRadius
+import com.example.sd_smart_parking_app.ui.theme.DarkText
+import com.example.sd_smart_parking_app.ui.theme.MediumAvailabilityOrange
+import com.example.sd_smart_parking_app.ui.theme.MediumGray
+import com.example.sd_smart_parking_app.ui.theme.PrimaryYellow
 import com.example.sd_smart_parking_app.ui.theme.SmartParkingTheme
 import com.example.sd_smart_parking_app.ui.theme.Spacing
 import com.example.sd_smart_parking_app.ui.theme.Typography
@@ -33,6 +51,7 @@ import java.util.*
 @Composable
 fun HomeScreen(
     onNavigationClick: () -> Unit,
+    onNearbyParkingClick: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
@@ -134,6 +153,11 @@ fun HomeScreen(
                 modifier = Modifier.padding(horizontal = Spacing.lg, vertical = Spacing.md)
             )
 
+            NearbyParkingBanner(
+                onClick = onNearbyParkingClick,
+                isHighOccupancy = occupancyPercentageDisplay >= 70
+            )
+
             FloorRecommendationCard(
                 recommendation = recommendationState.recommendation,
                 isLoading = recommendationState.isLoading,
@@ -162,10 +186,53 @@ fun HomeScreen(
     }
 }
 
+@Composable
+private fun NearbyParkingBanner(onClick: () -> Unit, isHighOccupancy: Boolean = false) {
+    val borderColor = if (isHighOccupancy) MediumAvailabilityOrange else Color(0xFFBDBDBD)
+    val bgColor = if (isHighOccupancy) Color(0xFFFFF3E0) else Color(0xFFF5F5F5)
+    val title = if (isHighOccupancy) "Parking is almost full" else "Looking for parking?"
+    val subtitle = "See alternative parking nearby"
+
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = Spacing.lg, vertical = Spacing.sm),
+        colors = CardDefaults.cardColors(containerColor = bgColor),
+        shape = RoundedCornerShape(CornerRadius.lg),
+        border = BorderStroke(1.dp, borderColor)
+    ) {
+        Row(
+            modifier = Modifier.padding(Spacing.md),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            Column(modifier = Modifier.weight(1f)) {
+                Text(title, style = Typography.headlineSmall)
+                Text(subtitle, style = Typography.bodySmall, color = MediumGray)
+            }
+            Button(
+                onClick = onClick,
+                modifier = Modifier.wrapContentWidth(),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = PrimaryYellow,
+                    contentColor = DarkText
+                ),
+                shape = RoundedCornerShape(CornerRadius.lg),
+                contentPadding = androidx.compose.foundation.layout.PaddingValues(
+                    horizontal = Spacing.md,
+                    vertical = Spacing.sm
+                )
+            ) {
+                Text("View", style = Typography.labelLarge)
+            }
+        }
+    }
+}
+
 @Preview(showBackground = true, showSystemUi = true)
 @Composable
 fun HomeScreenPreview() {
     SmartParkingTheme {
-        HomeScreen(onNavigationClick = {})
+        HomeScreen(onNavigationClick = {}, onNearbyParkingClick = {})
     }
 }
