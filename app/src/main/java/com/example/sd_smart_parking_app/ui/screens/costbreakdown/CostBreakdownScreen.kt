@@ -67,12 +67,9 @@ fun CostBreakdownScreen(
 ) {
     val context = LocalContext.current
 
-    // ── Network Monitor ───────────────────────────────────────────────────────
     val networkMonitor = remember { NetworkMonitor(context) }
     val isConnected by networkMonitor.isConnected.collectAsState()
-    DisposableEffect(Unit) {
-        onDispose { networkMonitor.unregister() }
-    }
+    DisposableEffect(Unit) { onDispose { networkMonitor.unregister() } }
 
     val viewModel: CostBreakdownViewModel = viewModel(
         factory = object : ViewModelProvider.Factory {
@@ -93,31 +90,18 @@ fun CostBreakdownScreen(
                 .padding(paddingValues)
                 .verticalScroll(rememberScrollState())
         ) {
-            // ── Top bar ───────────────────────────────────────────────────
             Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .background(BackgroundWhite)
-                    .padding(horizontal = Spacing.sm, vertical = Spacing.sm),
+                modifier = Modifier.fillMaxWidth().background(BackgroundWhite).padding(horizontal = Spacing.sm, vertical = Spacing.sm),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
-                IconButton(onClick = onNavigateBack) {
-                    Icon(imageVector = Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
-                }
+                IconButton(onClick = onNavigateBack) { Icon(imageVector = Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back") }
                 Text(text = "Cost Breakdown", style = Typography.headlineMedium, fontWeight = FontWeight.Bold)
-                IconButton(onClick = { viewModel.loadCostBreakdown() }) {
-                    Icon(imageVector = Icons.Default.Refresh, contentDescription = "Refresh")
-                }
+                IconButton(onClick = { viewModel.loadCostBreakdown() }) { Icon(imageVector = Icons.Default.Refresh, contentDescription = "Refresh") }
             }
 
             Spacer(modifier = Modifier.height(Spacing.lg))
 
-            // ── Banner offline — CostBreakdown ────────────────────────────
-            // Mensaje personalizado para costos: informa que los datos vienen
-            // del LRU cache y que se intentará refrescar al volver la conexión.
-            // Los cálculos de daily cap y monthly totals reflejan la última
-            // sesión conectada.
             if (!isConnected) {
                 OfflineBanner(
                     message = "Your cost breakdown is showing cached spending data. " +
@@ -134,7 +118,6 @@ fun CostBreakdownScreen(
                         CircularProgressIndicator(color = NavigationBlue)
                     }
                 }
-
                 uiState.error != null && uiState.allTimeSpentCOP == 0.0 -> {
                     Box(modifier = Modifier.fillMaxWidth().padding(top = 80.dp), contentAlignment = Alignment.Center) {
                         Column(horizontalAlignment = Alignment.CenterHorizontally) {
@@ -145,7 +128,6 @@ fun CostBreakdownScreen(
                         }
                     }
                 }
-
                 uiState.allTimeSpentCOP == 0.0 -> {
                     Box(modifier = Modifier.fillMaxWidth().padding(top = 80.dp), contentAlignment = Alignment.Center) {
                         Column(horizontalAlignment = Alignment.CenterHorizontally) {
@@ -156,10 +138,7 @@ fun CostBreakdownScreen(
                         }
                     }
                 }
-
-                else -> {
-                    CostBreakdownContent(viewModel = viewModel)
-                }
+                else -> CostBreakdownContent(viewModel = viewModel)
             }
 
             Spacer(modifier = Modifier.height(Spacing.lg))
@@ -179,9 +158,7 @@ private fun CostBreakdownContent(viewModel: CostBreakdownViewModel) {
     }
 
     Spacer(modifier = Modifier.height(Spacing.md))
-
     MonthlySpendingCard(monthLabel = s.monthLabel, spendingCOP = s.monthlySpendingCOP, maxSpendingCOP = s.maxMonthlySpendingCOP, formatCOP = { viewModel.formatCOP(it) })
-
     Spacer(modifier = Modifier.height(Spacing.md))
 
     if (s.avgCostByDay.isNotEmpty()) {
@@ -235,7 +212,15 @@ private fun AvgCostByDayChart(data: Map<String, Double>, maxValue: Double, forma
         Column(modifier = Modifier.fillMaxWidth().padding(Spacing.lg)) {
             Text(text = "Avg Cost by Day of Week", style = Typography.bodyMedium, fontWeight = FontWeight.SemiBold, color = Color.Black)
             Spacer(modifier = Modifier.height(Spacing.lg))
-            data.forEach { (day, avgCost) ->
+
+            // ── Optimization #4: Indexed loop over map entries ────────────────
+            // data.forEach { } allocates an Iterator on every recomposition.
+            // Converting entries to a list and using an indexed for loop
+            // avoids that allocation on each chart render.
+            val keys = data.keys.toList()
+            for (i in 0 until keys.size) {
+                val day     = keys[i]
+                val avgCost = data[day] ?: 0.0
                 val fraction = if (avgCost == 0.0) 0.04f else (avgCost / maxValue).coerceIn(0.0, 1.0).toFloat()
                 Row(modifier = Modifier.fillMaxWidth().padding(bottom = Spacing.sm), verticalAlignment = Alignment.CenterVertically) {
                     Text(text = shortDay(day), style = Typography.bodySmall, color = MediumGray, modifier = Modifier.width(36.dp))
