@@ -19,7 +19,7 @@ class NotificationManagerHelper(private val context: Context) {
         availableSpots: Int,
         occupancyPercentage: Int
     ) {
-        val title = "¡Available spots!"
+        val title = "Available spots!"
         val message = when {
             occupancyPercentage <= 20 -> {
                 "Floor $floorNumber: $availableSpots available spots (High Availability)"
@@ -37,7 +37,7 @@ class NotificationManagerHelper(private val context: Context) {
 
     fun sendLowOccupancyNotification(averageOccupancy: Int) {
         val title = "Low Parking Occupancy"
-        val message = "Average Occupancy: $averageOccupancy%. Is time to park"
+        val message = "Average Occupancy: $averageOccupancy%. It's time to park!"
 
         sendNotification(title, message)
     }

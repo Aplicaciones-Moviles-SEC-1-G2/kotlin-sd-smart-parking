@@ -75,7 +75,8 @@ fun ProfileScreen(
     onNavigateToLogin: () -> Unit,
 
     onNavigateToParkingStats: () -> Unit = {},
-    onNavigateToCostBreakdown: () -> Unit = {}
+    onNavigateToCostBreakdown: () -> Unit = {},
+    onNavigateToNotifications: () -> Unit = {}
 ) {
     val context = LocalContext.current
     val networkMonitor = remember { NetworkMonitor(context) }
@@ -459,7 +460,12 @@ fun ProfileScreen(
                         style = Typography.headlineSmall,
                         modifier = Modifier.padding(bottom = Spacing.md)
                     )
-                    PreferenceCard(icon = "🔔", label = "Notifications", isEnabled = true)
+                    PreferenceCard(
+                        icon = "🔔",
+                        label = "Notifications",
+                        isEnabled = true,
+                        onClick = onNavigateToNotifications
+                    )
                 }
 
                 Box(modifier = Modifier.padding(bottom = Spacing.lg))
@@ -509,9 +515,12 @@ fun AccountCard(icon: String, label: String, value: String) {
 }
 
 @Composable
-fun PreferenceCard(icon: String, label: String, isEnabled: Boolean) {
+fun PreferenceCard(icon: String, label: String, isEnabled: Boolean, onClick: () -> Unit = {}) {
     Card(
-        modifier = Modifier.fillMaxWidth().padding(bottom = Spacing.md),
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(bottom = Spacing.md)
+            .clickable { onClick() },
         colors = CardDefaults.cardColors(containerColor = BackgroundLightGray),
         shape = RoundedCornerShape(CornerRadius.md)
     ) {
@@ -532,15 +541,7 @@ fun PreferenceCard(icon: String, label: String, isEnabled: Boolean) {
                 }
                 Text(text = label, style = Typography.bodyMedium)
             }
-            Box(
-                modifier = Modifier.size(40.dp).background(
-                    color = if (isEnabled) com.example.sd_smart_parking_app.ui.theme.HighAvailabilityGreen else BackgroundLightGray,
-                    shape = RoundedCornerShape(50.dp)
-                ),
-                contentAlignment = Alignment.Center
-            ) {
-                Text(if (isEnabled) "✓" else "○", fontSize = 18.sp)
-            }
+            Text("→", fontSize = 20.sp)
         }
     }
 }
