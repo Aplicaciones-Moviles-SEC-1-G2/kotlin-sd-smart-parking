@@ -61,9 +61,9 @@ fun RegisterScreen(
     val roles = listOf("Driver", "Manager")
 
     // Validation Regex
-    val emailRegex = "^[A-Za-z0-9+_.-]+@[A-Za-z0-9.-]+\\.[a-z]{2,}$".toRegex()
-    val plateRegex = "^[A-Z]{3}[0-9]{3}$".toRegex()
-    val phoneRegex = "^[0-9]{8,15}$".toRegex()
+    val emailRegex = remember { "^[A-Za-z0-9+_.-]+@[A-Za-z0-9.-]+\\.[a-z]{2,}$".toRegex() }
+    val plateRegex = remember { "^[A-Z]{3}[0-9]{3}$".toRegex() }
+    val phoneRegex = remember { "^[0-9]{8,15}$".toRegex() }
 
     // Validation logic
     val isEmailValid = email.matches(emailRegex)

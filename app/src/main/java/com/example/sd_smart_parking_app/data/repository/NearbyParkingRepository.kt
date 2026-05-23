@@ -99,7 +99,8 @@ class NearbyParkingRepository private constructor(private val context: Context) 
 
     private fun saveToSharedPreferences(list: List<NearbyParking>) {
         val array = JSONArray()
-        list.forEach { parking ->
+        for (i in 0 until list.size) {  // ✅ indexed loop, sin Iterator
+            val parking = list[i]
             val obj = JSONObject().apply {
                 put("id", parking.id)
                 put("name", parking.name)
@@ -108,7 +109,6 @@ class NearbyParkingRepository private constructor(private val context: Context) 
                 put("lng", parking.lng)
                 put("approximateCapacity", parking.approximateCapacity)
                 put("phone", parking.phone)
-                // distanceMeters is NOT persisted — recalculated on load
             }
             array.put(obj)
         }
@@ -116,7 +116,6 @@ class NearbyParkingRepository private constructor(private val context: Context) 
             .putString("nearby_parking_json", array.toString())
             .putLong("nearby_parking_saved_at", System.currentTimeMillis())
             .apply()
-        Log.d("NearbyParkingRepo", "SharedPreferences updated — ${list.size} items saved")
     }
 
     private fun loadFromSharedPreferences(): List<NearbyParking>? {
@@ -151,11 +150,17 @@ class NearbyParkingRepository private constructor(private val context: Context) 
     // Distance helpers
     // ─────────────────────────────────────────────────────────────────────────
     private fun withDistances(list: List<NearbyParking>): List<NearbyParking> {
-        return list.map { parking ->
-            val results = FloatArray(1)
-            android.location.Location.distanceBetween(SD_LAT, SD_LNG, parking.lat, parking.lng, results)
-            parking.copy(distanceMeters = results[0])
-        }.sortedBy { it.distanceMeters }
+        val results = FloatArray(1)  // ✅ fuera del loop
+        val output = ArrayList<NearbyParking>(list.size)
+        for (i in 0 until list.size) {  // ✅ indexed loop
+            val parking = list[i]
+            android.location.Location.distanceBetween(
+                SD_LAT, SD_LNG, parking.lat, parking.lng, results
+            )
+            output.add(parking.copy(distanceMeters = results[0]))
+        }
+        output.sortBy { it.distanceMeters }
+        return output
     }
 
     // ─────────────────────────────────────────────────────────────────────────
