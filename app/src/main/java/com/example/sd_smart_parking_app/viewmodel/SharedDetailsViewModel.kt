@@ -1,5 +1,7 @@
 package com.example.sd_smart_parking_app.viewmodel
 
+import android.util.Log
+import android.util.SparseArray
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import android.content.Context
@@ -69,6 +71,30 @@ class SharedDetailsViewModel(
             notificationManager?.spotThreshold = value
         }
 
+    // ── SparseArray cache de FloorState ──────────────────────────────────────
+    // SparseArray es la estructura elegida porque las claves son enteros (número
+    // de piso). A diferencia de HashMap<Int, FloorState>, SparseArray evita el
+    // boxing/unboxing de Int a Integer en cada acceso, usando arrays de int[]
+    // internamente. Esto reduce allocations y es la recomendación de Android
+    // para mapas con claves enteras en rangos pequeños y conocidos.
+    //
+    // Decisión de tamaño: initialCapacity = 5 porque el parqueadero tiene un
+    // número fijo de pisos (configurado en Firebase). 5 es un valor razonable
+    // que evita reallocations en la mayoría de los casos sin desperdiciar memoria.
+    // El SparseArray puede crecer si hay más pisos.
+    //
+    // Clave   = número de piso (Int, ej: 1, 2, 3)
+    // Valor   = FloorState calculado para ese piso
+    // Política de invalidación: se invalida individualmente cuando cambia el
+    // número de spots disponibles en ese piso. Si el piso no cambió entre
+    // snapshots de Firestore, se reutiliza la entrada cacheada sin recalcular.
+    private val floorStateCache = SparseArray<FloorState>(5)
+
+    // Rastrea cuántos spots disponibles había por piso en el último snapshot.
+    // Permite detectar si un piso realmente cambió antes de recalcular su estado.
+    // Clave = número de piso, Valor = cantidad de spots disponibles
+    private val lastKnownAvailable = SparseArray<Int>(5)
+
     init {
         val savedTimestamp = repository.getLastServerUpdate()
         if (savedTimestamp > 0L) {
@@ -109,7 +135,6 @@ class SharedDetailsViewModel(
 
                 val displayTime = if (isFromCache) {
                     val savedTs = repository.getLastServerUpdate()
-                    // Use saved server timestamp if available; fall back to now so the label is never blank
                     if (savedTs > 0L) formatTimestamp(savedTs) else formatTimestamp(System.currentTimeMillis())
                 } else {
                     formatTimestamp(System.currentTimeMillis())
@@ -140,9 +165,25 @@ class SharedDetailsViewModel(
                 val spotsInFloor = spots.filter { it.floor == floorNum }
                 val floorTotal = spotsInFloor.size
                 val floorAvailable = spotsInFloor.count { it.isAvailable }
-                val floorPercentage = if (floorTotal > 0) (floorAvailable * 100) / floorTotal else 0
 
-                FloorState(
+                // ── Lógica de caché SparseArray ───────────────────────────────
+                // Verificar si el número de spots disponibles cambió respecto al
+                // último snapshot procesado para este piso.
+                val previousAvailable = lastKnownAvailable.get(floorNum, -1)
+                val floorChanged = previousAvailable != floorAvailable
+
+                if (!floorChanged) {
+                    // Cache HIT: el piso no cambió — reutilizar FloorState existente
+                    val cached = floorStateCache.get(floorNum)
+                    if (cached != null) {
+                        Log.d("FloorStateCache", "[SparseArray] HIT — piso $floorNum | available: $floorAvailable (sin cambios)")
+                        return@map cached
+                    }
+                }
+
+                // Cache MISS o piso cambió: recalcular FloorState
+                val floorPercentage = if (floorTotal > 0) (floorAvailable * 100) / floorTotal else 0
+                val newState = FloorState(
                     floorNumber = floorNum,
                     availableSpots = floorAvailable,
                     totalSpots = floorTotal,
@@ -153,6 +194,13 @@ class SharedDetailsViewModel(
                         else -> "Low"
                     }
                 )
+
+                // Actualizar caché y tracker de disponibilidad
+                floorStateCache.put(floorNum, newState)
+                lastKnownAvailable.put(floorNum, floorAvailable)
+                Log.d("FloorStateCache", "[SparseArray] MISS — piso $floorNum recalculado | prev: $previousAvailable → now: $floorAvailable | cache size: ${floorStateCache.size()}")
+
+                newState
             }
 
             _detailsState.value = _detailsState.value.copy(floorStates = newFloorStates)
@@ -160,6 +208,12 @@ class SharedDetailsViewModel(
     }
 
     fun refreshData() {
+        // Al forzar refresh desde el servidor, invalidar el caché completo
+        // para que todos los pisos se recalculen con datos frescos.
+        floorStateCache.clear()
+        lastKnownAvailable.clear()
+        Log.d("FloorStateCache", "[SparseArray] Cache invalidado por refresh manual")
+
         repository.forceRefreshParkingSpots(
             onResult = { spots, timestamp ->
                 val total = spots.size
