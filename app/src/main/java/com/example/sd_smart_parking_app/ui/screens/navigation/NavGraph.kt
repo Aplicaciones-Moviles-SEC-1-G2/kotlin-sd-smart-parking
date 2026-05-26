@@ -27,6 +27,7 @@ import com.example.sd_smart_parking_app.ui.screens.notes.ParkingNotesScreen
 import com.example.sd_smart_parking_app.ui.screens.stats.ParkingStatsScreen
 import com.example.sd_smart_parking_app.ui.screens.costbreakdown.CostBreakdownScreen
 import com.example.sd_smart_parking_app.ui.screens.nearbyparking.NearbyParkingScreen
+import com.example.sd_smart_parking_app.ui.screens.notifications.NotificationsScreen
 
 // Rutas de navegación
 object NavRoutes {
@@ -43,6 +44,7 @@ object NavRoutes {
     const val PARKING_STATS = "parking_stats"
     const val COST_BREAKDOWN = "cost_breakdown"
     const val NEARBY_PARKING = "nearby_parking"
+    const val NOTIFICATIONS = "notifications"
 }
 
 @Composable
@@ -160,6 +162,9 @@ fun SmartParkingNavGraph(
                 },
                 onNavigateToCostBreakdown = {
                     navController.navigate(NavRoutes.COST_BREAKDOWN)
+                },
+                onNavigateToNotifications = {
+                    navController.navigate(NavRoutes.NOTIFICATIONS)
                 }
             )
         }
@@ -189,6 +194,12 @@ fun SmartParkingNavGraph(
 
         composable(NavRoutes.NEARBY_PARKING) {
             NearbyParkingScreen(
+                onNavigateBack = { navController.popBackStack() }
+            )
+        }
+
+        composable(NavRoutes.NOTIFICATIONS) {
+            NotificationsScreen(
                 onNavigateBack = { navController.popBackStack() }
             )
         }

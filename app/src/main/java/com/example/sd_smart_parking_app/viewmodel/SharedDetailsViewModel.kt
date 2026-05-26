@@ -2,6 +2,8 @@ package com.example.sd_smart_parking_app.viewmodel
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import android.content.Context
+import com.example.sd_smart_parking_app.data.ParkingNotificationManager
 import com.example.sd_smart_parking_app.data.model.ParkingConfig
 import com.example.sd_smart_parking_app.data.model.ParkingSpot
 import com.example.sd_smart_parking_app.data.repository.ParkingRepository
@@ -42,6 +44,30 @@ class SharedDetailsViewModel(
     val detailsState: StateFlow<SharedDetailsUIState> = _detailsState
 
     private var isInitialized = false
+    private var notificationManager: ParkingNotificationManager? = null
+    
+    private val _threshold = MutableStateFlow(5)
+    val thresholdFlow: StateFlow<Int> = _threshold
+
+    fun initNotificationManager(context: Context) {
+        if (notificationManager == null) {
+            notificationManager = ParkingNotificationManager(context.applicationContext)
+            _threshold.value = notificationManager?.spotThreshold ?: 5
+            
+            // Sync cache if spots were already loaded
+            val currentSpots = _detailsState.value.parkingSpots
+            if (currentSpots.isNotEmpty()) {
+                notificationManager?.updateCache(currentSpots)
+            }
+        }
+    }
+
+    var threshold: Int
+        get() = _threshold.value
+        set(value) {
+            _threshold.value = value
+            notificationManager?.spotThreshold = value
+        }
 
     init {
         val savedTimestamp = repository.getLastServerUpdate()
@@ -88,6 +114,8 @@ class SharedDetailsViewModel(
                 } else {
                     formatTimestamp(System.currentTimeMillis())
                 }
+
+                notificationManager?.updateCache(spots)
 
                 _detailsState.value = currentState.copy(
                     parkingSpots = spots,
@@ -137,6 +165,9 @@ class SharedDetailsViewModel(
                 val total = spots.size
                 val available = spots.count { it.isAvailable }
                 val occupied = total - available
+                
+                notificationManager?.updateCache(spots)
+
                 _detailsState.value = _detailsState.value.copy(
                     parkingSpots = spots,
                     totalSpots = total,
@@ -151,6 +182,22 @@ class SharedDetailsViewModel(
         )
     }
 
+    fun simulateNotification() {
+        val available = _detailsState.value.availableSpots
+        notificationManager?.simulateNotification(
+            "Critical Capacity",
+            "Alert! Only $available spots available in the SD Building."
+        )
+    }
+
+    fun simulateLostConnection() {
+        val available = _detailsState.value.availableSpots
+        notificationManager?.simulateNotification(
+            "Basement Mode: Connection Lost",
+            "You've entered a zone with no coverage. Last known availability: $available free spots."
+        )
+    }
+
     private fun formatTimestamp(timestamp: Long): String {
         val cal = Calendar.getInstance().apply { timeInMillis = timestamp }
         val today = Calendar.getInstance()
@@ -158,9 +205,9 @@ class SharedDetailsViewModel(
             cal.get(Calendar.MONTH) == today.get(Calendar.MONTH) &&
             cal.get(Calendar.YEAR) == today.get(Calendar.YEAR)
         ) {
-            SimpleDateFormat("h:mm:ss a", Locale.getDefault()).format(Date(timestamp))
+            SimpleDateFormat("h:mm:ss a", Locale.ENGLISH).format(Date(timestamp))
         } else {
-            SimpleDateFormat("MMM d, h:mm a", Locale.getDefault()).format(Date(timestamp))
+            SimpleDateFormat("MMM d, h:mm a", Locale.ENGLISH).format(Date(timestamp))
         }
     }
 

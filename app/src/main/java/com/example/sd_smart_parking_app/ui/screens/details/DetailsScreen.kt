@@ -38,6 +38,7 @@ fun DetailsScreen(
     val isConnected by networkMonitor.isConnected.collectAsState()
 
     LaunchedEffect(Unit) {
+        viewModel.initNotificationManager(context)
         viewModel.initializeIfNeeded()
     }
 
